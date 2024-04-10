@@ -1,0 +1,70 @@
+---
+title: "Exercise_1"
+output: html_document
+date: "2024-04-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+## Part one
+
+1.  Let's upload the database in the memory of our computer.
+
+```{r}
+PATH <- 'C:\\Users\\adadi\\OneDrive\\Desktop\\Advanced_statistics\\Data_CitiBike\\JC-'
+
+LASTNAME <- '-citibike-tripdata.csv'
+counter <- 201902
+
+num_databases = 4
+databases <- character(num_databases)
+data <- character(num_databases)
+for (i in 1:num_databases) {
+  data[i] <- sprintf("%s%i%s", PATH, counter, LASTNAME)
+  databases[i] <- read.csv(data[i])
+  counter <- counter+ 1 
+}
+summary(databases[2])
+head(databases[2])
+
+```
+
+2)  Now we want to merge the five data frames in a unique structure
+
+```{r}
+
+for (i in 2:num_databases) {
+     df <- rbind(databases[1], databases[i])
+}
+summary(df)
+```
+
+3) Check for missing data and remove it, if any 
+
+```{r}
+missing_data <- is.na(df) #cerco righe nulle nel dataframe
+complete_rows <- complete.cases(df) #cerco elementi non nulli nel df
+df <- df[complete_rows ]
+```
