@@ -1,0 +1,599 @@
+---
+title: "Exercise_4_Adv_statistics"
+output: html_document
+date: "2024-05-04"
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+$\textbf{Exercise 1: Bayesian Inference for Poisson Model}$
+
+The number of particles emitted by a radioactive source during a fixed
+interval of time ($\Delta \ t \ = \ 10 \ s$) follows a Poisson
+distribution on the parameter $\mu$. The number of particles observed
+during consecutive time intervals is: 4, 1, 3, 1, 5, and 3.
+
+(a) Assuming a $\textit{positive uniform}$ prior distribution for the
+    parameter $\mu$:
+
+-   Determine and draw the posterior distribution for $\mu$, given the
+    data;
+-   Evaluate mean, median and variance, both analytically and
+    numerically in R.
+
+```{r}
+library(ggplot2)
+
+## Introducing the observed data 
+
+N_par <- c(4, 1, 3, 1, 5, 3)
+Dt <- 10 #s
+
+## Assuming a positive uniform prior for mu 
+
+
+## Defining the likelihood, it is the function that represents the probability of measung a given value of D before taking the measure 
+
+likelihood <- function(mu, data) {
+  prod(dpois(data, lambda = mu))
+}
+
+mu_values <- seq(0, 10, by = 0.01)
+
+posterior_un <- sapply(mu_values, likelihood, data = N_par)
+
+posterior <- posterior_un / sum(posterior_un)
+
+N <- length(N_par)
+mean_analytical <- sum(N_par + 1) / (N + 1)
+variance_analytical <- (sum(N_par) + 1) / ((N+1)^2 * (N + 2))
+
+mean_numerical <- sum(mu_values * posterior)
+median_numerical <- quantile(mu_values, 0.5, probs = posterior)[[1]]
+variance_numerical <- sum((mu_values - mean_numerical)^2 * posterior)
+
+cat('Posterior Mean (Analytical):', mean_analytical, '\n')
+cat('Posterior Variance (Analytical):', variance_analytical, '\n')
+
+
+cat('Posterior Mean (Numerical):', mean_numerical, '\n')
+cat('Posterior Median (Numerical):', median_numerical, '\n')
+cat('Posterior Variance (Numerical):', variance_numerical, '\n')
+
+# -------------------------------
+
+df <- data.frame(mu = mu_values, posterior = posterior)
+
+# Create the ggplot object
+ggplot(df, aes(x = mu, y = posterior)) +
+  geom_point(color = 'firebrick', size = 0.7, alpha = 0.9, shape = 15) +
+  geom_histogram(fill = "salmon", stat = 'identity') +  # Use geom_col for a histogram-like plot
+  labs(x = expression(mu),
+       y = 'Posterior Probability Density',
+       title = "Posterior Distribution (Positive Uniform Prior)") +
+  xlim(0, 10) +
+  ylim(0, max(posterior * 1.1)) + 
+  theme_light() +  # Use a light theme with white background
+  theme(panel.background = element_rect(fill = "white")) +  # Set the panel background to white 
+  geom_vline(xintercept = mean_numerical, linetype = 'dashed', color = 'red')
+
+# ---------------------------------------
+
+
+
+## RIVEDERE VALOR
+```
+
+(b) Assuming a $\textit{Gamma}$ prior such that the expected value is
+    $\mu \ = \ 3$ with a standard deviation $\sigma \ = \ 1$,
+
+-   Determine and draw the posterior distribution for $\mu$, given the
+    data,
+-   Evaluate mean, median and variance, both analytically and
+    numerically in R.
+
+```{r}
+library(ggplot2)
+
+mu_prior <- 3
+sigma_prior <- 1
+
+k <- (mu_prior / sigma_prior)^2
+theta <- sigma_prior^2 / mu_prior
+
+x <- seq(0, 10, by = 0.01)  # Range of values for the Gamma distribution
+
+prior_density <- function(x, shape, rate) {
+  dgamma(x, shape = shape, rate = rate)
+}
+
+posterior_density <- function(mu, data) {
+  shape_prior <- k
+  rate_prior <- theta
+  prior <- dgamma(mu, shape = shape_prior, rate = rate_prior)
+  likelihood <- prod(dpois(data, lambda = mu))
+  posterior <- prior * likelihood
+  return(posterior)
+}
+
+
+# Plot the Gamma prior distribution -------------------------
+
+prior_values <- prior_density(x, shape = k, rate = theta)
+
+df2 <- data.frame(mu = x, posterior = prior_values)
+
+# Create the ggplot object
+ggplot(df2, aes(x = mu, y = posterior)) +
+  geom_point(color = 'firebrick', size = 0.7, alpha = 0.9, shape = 15) +
+  geom_histogram(fill = "salmon", stat = 'identity') +  # Use geom_col for a histogram-like plot
+  labs(x = expression(mu),
+       y = 'Prior Probability Density',
+       title = "Gamma prior") +
+  xlim(0, 10) +
+  ylim(0, max(posterior * 1.1)) + 
+  theme_light() +  # Use a light theme with white background
+  theme(panel.background = element_rect(fill = "white"))  # Set the panel background to white
+
+# -------------------------------------------------------
+
+
+posterior_values <- sapply(mu_values, posterior_density, data = N_par)
+
+# Normalize posterior density
+posterior_density_normalized <- posterior_values / sum(posterior_values)
+
+
+# Plot posterior distribution --------------------------
+
+df3 <- data.frame(mu = mu_values, posterior = posterior_density_normalized)
+
+# Create the ggplot object
+ggplot(df3, aes(x = mu, y = posterior)) +
+  geom_point(color = 'firebrick', size = 0.7, alpha = 0.9, shape = 15) +
+  geom_histogram(fill = "pink", stat = 'identity') +  # Use geom_col for a histogram-like plot
+  labs(x = expression(mu),
+       y = 'Posterior Probability Density',
+       title = paste('Posterior Distribution for mu ' )) +
+  xlim(0, 10) +
+  ylim(0, max(posterior * 1.1)) + 
+  theme_light() +  # Use a light theme with white background
+  theme(panel.background = element_rect(fill = "white"))  # Set the panel background to white
+
+# -------------------------------------------------------
+
+
+N <- length(N_par)
+mean_analytical <- (sum(N_par) + mu_prior) / (N + 1)
+median_analytical <- qgamma(0.5, shape = k + sum(N_par, scale = theta + 1))
+variance_analytical <- (median_analytical) / (N + 1)
+
+mean_numerical <- sum(mu_values * posterior)
+median_numerical <- quantile(mu_values, 0.5, probs = posterior_density_normalized)[[1]]
+variance_numerical <- sum((mu_values - mean_numerical)^2 * posterior_density_normalized)
+
+cat('Posterior Mean (Analytical):', mean_analytical, '\n')
+cat("Posterior Median (Analytical):", median_analytical, "\n")
+cat('Posterior Variance (Analytical):', variance_analytical, '\n')
+
+
+cat('Posterior Mean (Numerical):', mean_numerical, '\n')
+cat('Posterior Median (Numerical):', median_numerical, '\n')
+cat('Posterior Variance (Numerical):', variance_numerical, '\n')
+
+## DOPO AVER AGGIUSTATO IL VALORE DELLA MEDIA AGGIUNGERLA SUL GRAFICO 
+
+### RIVEDERE
+```
+
+(c) Evaluate a 95% credibility interval for the results obtained with
+    different priors. Compare the result with that obtained using a
+    normal approximation for the posterior distribution, with the same
+    mean and standard deviation.
+
+```{r}
+
+# Function to calculate the cumulative posterior probability
+cumulative_posterior <- cumsum(posterior_density_normalized)
+
+# Find the lower and upper bounds of the 95% credibility interval
+lower_bound <- min(mu_values[cumulative_posterior >= 0.025])
+upper_bound <- max(mu_values[cumulative_posterior <= 0.975])
+
+# Print the 95% credibility interval
+cat("95% Credibility Interval (Gamma Prior): [", lower_bound, ", ", upper_bound, "]\n")
+
+# Calculate the mean and standard deviation of the posterior distribution
+posterior_mean <- mean_analytical
+posterior_sd <- sqrt(variance_analytical)
+
+# Calculate the 95% credibility interval using normal approximation
+normal_lower_bound <- qnorm(0.025, mean = posterior_mean, sd = posterior_sd)
+normal_upper_bound <- qnorm(0.975, mean = posterior_mean, sd = posterior_sd)
+
+# Print the 95% credibility interval using normal approximation
+cat("95% Credibility Interval (Normal Approximation): [", normal_lower_bound, ", ", normal_upper_bound, "]\n")
+
+
+```
+
+$\textbf{Exercise 2: Efficiency using Bayesian approach}$
+
+A researcher A wants to evaluate the efficiency of detector 2 (Det2).
+For this purpose, he sets up the apparatus shown in the figure 1, where
+Det2 is sandwiched between Det1 and Det3. Let $\textbf{n}$ be the number
+of signals recorded simultaneously by Det1 and Det3, and $\textbf{r}$ be
+those also recorded by Det2, researcher $\textbf{A}$ obtaines
+$n \ = \ 500$ and $r \ = \ 312$.
+
+![](images/Screenshot%202024-05-04%20220343.png)
+
+Assuming a binomial model where $\textbf{n}$ is the number of trials and
+$\textbf{r}$ is the number of successes out of $\textbf{n}$ trials:
+
+(a) Evaluate the $\textit{mean}$ and the $\textit{variance}$ using a
+    Bayesian approach under the hypothesis of:
+
+-   uniform prior $\sim U(0,1)$;
+
+-   Jeffrey's prior $\sim Beta(1/2, 1/2)$.
+
+```{r}
+
+## Considering first a uniform prior
+
+n <- 500
+r <- 312
+
+alpha <- 1/2
+beta <- 1/2
+
+likelihood <- function(r, p, n) {
+  dbinom(r, size = n, prob = p)
+}
+
+uniform_prior <- function(p) {
+  dunif(p, min = 0, max = 1)
+}
+
+jeffreys_prior <- function(p) {
+  dbeta(p, shape1 = 1/2, shape2 = 1/2)
+}
+
+
+posterior <- function(r, p, n, prior_function) {
+       lklhd <- likelihood(r, p, n)   # binomial function
+       prior <- prior_function(p)   # uniform or jeffreys
+       post <- lklhd * prior
+       return(post)
+}
+
+n_samples <- 201
+
+p_values <- seq(0, 1, length.out = n_samples)
+delta <- 1 / n_samples
+
+
+uniform_posterior_values <- posterior(r, p_values, n, uniform_prior)
+jeffreys_posterior_values <- posterior(r, p_values, n, jeffreys_prior)
+
+
+# -------------------------- MEAN AND VARIANCE -----------------------------
+
+
+calculate_posterior_mean_variance <- function(delta, posterior_values, p_values) {
+  
+  posterior_mean <- sum((p_values * posterior_values) * delta)
+  
+  posterior_variance <- sum((p_values - posterior_mean)^2 * posterior_values) * delta
+  return(list(mean = posterior_mean, variance = posterior_variance))
+}
+
+uniform_mean_variance <- calculate_posterior_mean_variance(delta, uniform_posterior_values, p_values)
+
+
+jeffreys_mean_variance <- calculate_posterior_mean_variance(delta, jeffreys_posterior_values, p_values)
+
+
+mean <- alpha /( alpha + beta) # Mean of the Jeffrey's prior distribution 
+mode <- (alpha - 1)/( alpha + beta - 2)
+
+cat("Uniform Prior (U(0, 1)):\n")
+cat("Posterior Mean:", uniform_mean_variance$mean, "\n")
+cat("Posterior Variance:", uniform_mean_variance$variance, "\n\n")
+
+cat("Jeffrey's Prior (Beta(1/2, 1/2)):\n")
+cat("Posterior Mean:", jeffreys_mean_variance$mean, "\n")
+cat("Posterior Variance:", jeffreys_mean_variance$variance, "\n")
+
+
+## -------------------------- PLOTTING ------------------------------
+
+plot(p_values, uniform_posterior_values, type = 'l', main = 'Posterior Density Function (uniform prior)', xlab = 'p', ylab = 'Posterior Density Function')
+grid()
+
+
+plot(p_values, jeffreys_posterior_values, type = 'l', main = 'Posterior Density Function (Jeffrey\'s prior)', xlab = 'p', ylab = 'Posterior Density Function')
+grid()
+
+
+p_prior_hist <- runif(201, 0, 1)
+hist(p_prior_hist, freq = FALSE, col = 'lightpink', main = 'Uniform Prior Distribution', xlab = 'Value', ylab = 'Density Distribution Function')
+curve(uniform_prior, add = TRUE, col = 'black', lwd = 2, n = 1000)
+
+
+
+j_prior_hist <- rbeta(201, shape1 = alpha, shape2 = beta)
+hist(j_prior_hist, freq = FALSE, col = "skyblue", main = "Jeffrey\'s Prior Distribution", xlab = "Value", ylab = "Density Distribution Function", xlim = c(0,1))
+curve(jeffreys_prior, add = TRUE, col = "red", lwd = 2, n = 1000)
+lines(c(mode , mode), c(0, 0.2), lty=2, lwd=2)
+lines(c(mean , mean), c(0, 0.2), lty=2, lwd=2)
+
+legend('topright', legend = expression(paste("Beta Prior Density (", alpha == 1/2, ", ", beta == 1/2, ")", sep = "")), col = "red", lwd = 2)
+
+print(paste('Mean =', mean, ' Mode = ', mode))
+
+```
+
+(b) Plot the posterior distributions for both cases.
+
+Taking into account that the same detector has been studied by
+researcher $\textbf{B}$, who has performed only $n \ = \ 10$
+measurements and has obtained $r \ = \ 10$ signals:
+
+(c) Evaluate the $\textit{mean}$, the $\textit{variance}$ and the
+    $\textit{posterior distribution}$ using a uniform prior with the
+    results of researcher $\textbf{B}$.
+
+```{r}
+nB <- 10 
+rB <- 10 
+    
+uniform_posterior_valuesB <- posterior(rB, p_values, nB, uniform_prior)    
+uniform_mean_varianceB <- calculate_posterior_mean_variance(delta, uniform_posterior_valuesB, p_values)
+
+plot(p_values, uniform_posterior_valuesB, type = 'l', main = 'Posterior Density Function (uniform prior)', xlab = 'p', ylab = 'Posterior Density Function')
+grid()
+
+    
+cat('Mean of the posterior distribution (researcher B): ', uniform_mean_varianceB$mean, ' \n ')
+cat('Variance of the posterior distribution (researcher B): ', uniform_mean_varianceB$variance, ' \n')
+    
+## CONTROLLARE I VALORI OTTENUTI 
+    
+```
+
+(d) Repeat the computation of point (a) and (b) with the data of
+    researcher $\textbf{A}$ using as a prior the posterior obtained from
+    point (c).
+
+```{r}
+# Vedere se i valori sono corretti e rifare 
+
+
+
+```
+
+(e) $\textbf{[Optional]}$ Compute $95%$ credible interval using the
+    posterior of the previous point (d).
+
+```{r}
+
+
+
+
+```
+
+$\textbf{Exercise 3: Bayesian Inference for Binomial model}$
+
+A coin is flipped $n \ = \ 30$ times with the following outcomes:
+$\textit{T, T, T, T, T, H, T, T, H, H, T, T, H, H, H, T, H, T, H, T, H, H, T, H, T, H, T, H, H, H}$
+
+(a) Assuming a flat prior, and a beta prior, plot the likelihood, prior
+    and posterior distributions for the data set;
+
+```{r}
+install.packages("gridExtra")
+library(gridExtra)
+
+## Assuming first a flat prior 
+
+n_tosses <- 30 
+out <- c(TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, FALSE, FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, FALSE, TRUE, FALSE, TRUE, FALSE, TRUE, FALSE, FALSE, FALSE)
+
+tails <- sum(out == TRUE)
+heads <- sum(out == FALSE)
+
+## Defining a binomial likelihood distribution 
+
+likelihood <- function(p) dbinom(heads, n, p)
+
+
+## Defining a uniform prior 
+
+flat_prior <- function(p) {dunif(p, 0,1)}
+
+## Defining a beta prior 
+
+beta_prior <- function(p) {dbeta(p, 1,1)} #quali sono i valori di alpha e beta?
+
+       
+posterior <- function(p, likelihood, prior_func) {
+  lklhd <- likelihood(p)
+  prior <- prior_func(p)
+  post <- lklhd * prior
+  
+  return(post)
+}
+  
+p_values <- seq(0, 1, by = 0.001)
+
+posterior_flat <- posterior(p_values, likelihood, flat_prior)
+posterior_beta <- posterior(p_values, likelihood, beta_prior)
+
+# Normalization constant
+  
+normalization_flat <- integrate(function(x) posterior(x, likelihood, flat_prior), 0, 1)$value
+normalization_beta <- integrate(function(x) posterior(x, likelihood, beta_prior), 0, 1)$value
+
+# Normalized posterior distributions
+posterior_flat_normalized <- posterior_flat / normalization_flat
+posterior_beta_normalized <- posterior_beta / normalization_beta
+
+
+likelihood_values <- sapply(p_values, likelihood)
+flat_prior_values <- sapply(p_values, flat_prior)
+beta_prior_values <- sapply(p_values, beta_prior)
+posterior_flat_values <- posterior_flat_normalized
+posterior_beta_values <- posterior_beta_normalized
+
+df_flat <- data.frame(mu = p_values, prior = flat_prior_values)
+df_beta <- data.frame(mu = p_values, prior = beta_prior_values)
+df_lklhd <- data.frame(mu = p_values, func = likelihood_values)
+df_flat_post <- data.frame(mu = p_values, func = posterior_flat_values)
+df_beta_post <- data.frame(mu = p_values, func = posterior_beta_values)
+  
+## ------------------------- Plotting ---------------------
+
+plot_width <- 8  # Adjust the width as needed
+plot_height <- 6  # Adjust the height as needed
+
+likelihood_plot <- ggplot(df_lklhd, aes(x = mu, y = func)) +
+  geom_line(aes(x = p_values, y = likelihood_values), color = "blue", size = 1) +
+  labs(title = "Likelihood Distribution", x = "Probability of Heads (p)", y = "Density") +
+   theme_minimal() 
+
+flat_prior_plot <- ggplot(df_flat, aes(x = mu, y = prior)) +
+  geom_line(aes(x = p_values, y = flat_prior_values), color = "green", size = 1) +
+  labs(title = "Flat Prior Distribution", x = "Probability of Heads (p)", y = "Density") +
+  theme_minimal()
+
+beta_prior_plot <- ggplot(df_beta, aes(x = mu, y = prior)) +
+  geom_line(aes(x = p_values, y = beta_prior_values), color = "orange", size = 1) +
+  labs(title = "Beta Prior Distribution", x = "Probability of Heads (p)", y = "Density") +
+  theme_minimal()
+
+posterior_flat_plot <- ggplot(df_flat_post, aes(x = mu, y = func)) +
+  geom_line(aes(x = p_values, y = posterior_flat_values), color = "red", size = 1) +
+  labs(title = "Posterior Distribution (Flat Prior)", x = "Probability of Heads (p)", y = "Density") +
+  theme_minimal()
+
+posterior_beta_plot <- ggplot(df_beta_post, aes(x = mu, y = func)) +
+  geom_line(aes(x = p_values, y = posterior_beta_values), color = "purple", size = 1) +
+  labs(title = "Posterior Distribution (Beta Prior)", x = "Probability of Heads (p)", y = "Density") +
+  theme_minimal()
+
+
+#Arrange plots in a grid
+#grid.arrange(likelihood_plot, flat_prior_plot, beta_prior_plot,
+#            posterior_flat_plot, posterior_beta_plot,
+ #          ncol = 2, nrow = 3)
+
+likelihood_plot
+flat_prior_plot
+beta_prior_plot
+posterior_flat_plot
+posterior_beta_plot
+
+
+# Le distribuzioni sono uguali perché le prior sono uguali (flat prior e beta prior)
+```
+
+(b) Evaluate the most probable value for the coin probability $p$ and,
+    integrating the posterior probability distribution, give an estimate
+    for a $95 \%$ credibility interval;
+
+```{r}
+
+## Let's first find the mode of the posterior probability density 
+mode_index <- which.max(posterior_flat_values) #valore maggiore della posterior
+mode_p <- p_values[mode_index]
+
+cat('Most probable value for p:', mode_p, '\n')
+
+cumulative_posterior <- cumsum(posterior_flat_values) # estimating the cumulative function 
+
+lower_bound <- min(p_values[cumulative_posterior >= 0.025])
+upper_bound <- max(p_values[cumulative_posterior <= 0.975])
+
+cat('95% credibility interval: ', lower_bound, '-', upper_bound, ' \n')
+
+```
+
+(c) Repeat the same analysis assuming a sequential analysis of the data.
+    Show how the most probable value and the credibility interval change
+    as a function of the number of coin tosses (i.e. from 1 to 30);
+
+```{r}
+
+## Let's now perform a sequential analysis of the data 
+modes <- numeric(n_tosses)
+lower_bounds <- numeric(n_tosses)
+upper_bounds <- numeric(n_tosses)
+
+for (i in 1:n_tosses) {
+  data <- out[1:i]
+  
+
+  likelihood <- function(p) dbinom(sum(data == FALSE), length(data), p)
+  
+  posterior <- function(p) likelihood(p) * dbeta(p, 1, 1) #assuming a flat prior 
+  
+  p_values <- seq(0, 1, by = 0.001)
+  posterior_values <- posterior(p_values)
+  mode_index <- which.max(posterior_values)
+  mode_p <- p_values[mode_index]
+  modes[i] <- mode_p
+  
+  cumulative_posterior <- cumsum(posterior_values)
+  lower_bound <- min(p_values[cumulative_posterior >= 0.025])
+  upper_bound <- max(p_values[cumulative_posterior <= 0.975])
+  lower_bounds[i] <- lower_bound 
+  upper_bounds[i] <- upper_bound
+}
+
+# Plot results
+plot(1:n_tosses, modes, type = "l", ylim = c(0, 1), xlab = "Number of Tosses", ylab = "Probability of Heads", main = "Sequential Analysis")
+lines(1:n_tosses, lower_bounds, col = "blue", lty = 2)
+lines(1:n_tosses, upper_bounds, col = "blue", lty = 2)
+grid()
+legend("topright", legend = c("Mode", "95% Credibility Interval"), col = c("black", "blue"), lty = c(1, 2))
+
+```
+
+(d) Do you get a different result, by analyzing the data sequentially
+    with respect to a one-step analysis (i.e. considering all the data
+    as a whole)?
+
+```{r}
+
+## Should I evaluate the prior distribution also in this case?
+## Should I evaluate the maximum probability also in this case?
+
+```
+
+$\textbf{Exercise 4: Poll}$
+
+A couple of days before an election in which four parties (A, B, C, D)
+compete, a poll is taken using a sample of 200 voters who express the
+following preferences: 57, 31, 45 and 67 for, respectively, parties A,
+B, C and D.
+
+Using a Bayesian approach, for all parties:
+
+(a) Calculate the expected percentage of votes and a $68 \%$ credibility
+    interval by assuming as prior a:
+
+-   uniform prior;
+-   a prior constructed from the results obtained from another poll
+    conducted the previous week on a sample of 100 voters who expressed
+    the following preferences 32, 14, 26 and 28 for, respectively,
+    parties A, B, C and D.
+
+(b) Sample size to obtain a margin of error less or equal than
+    $\pm \ 3 \%$ for each party.

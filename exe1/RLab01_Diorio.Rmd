@@ -1,0 +1,298 @@
+---
+title: "Exercise_1 - D'Iorio Ada 2092320"
+output: html_document
+date: "2024-04-09"
+---
+
+## Part one
+
+1.  Let's upload the database in the memory of the computer.
+
+```{r}
+data02 <- read.csv('C:\\Users\\adadi\\OneDrive\\Desktop\\Advanced_statistics\\Data_CitiBike\\JC-201902-citibike-tripdata.csv')
+data03 <- read.csv('C:\\Users\\adadi\\OneDrive\\Desktop\\Advanced_statistics\\Data_CitiBike\\JC-201903-citibike-tripdata.csv')
+data04 <- read.csv('C:\\Users\\adadi\\OneDrive\\Desktop\\Advanced_statistics\\Data_CitiBike\\JC-201904-citibike-tripdata.csv')
+data05 <- read.csv('C:\\Users\\adadi\\OneDrive\\Desktop\\Advanced_statistics\\Data_CitiBike\\JC-201905-citibike-tripdata.csv')
+data06 <- read.csv('C:\\Users\\adadi\\OneDrive\\Desktop\\Advanced_statistics\\Data_CitiBike\\JC-201906-citibike-tripdata.csv')
+
+```
+
+2)  Now we want to merge the five data frames in a unique structure
+
+```{r}
+
+df <- rbind(data02, data03, data04, data05, data06)
+print(df)
+```
+
+3)  Check for missing data and remove it, if any
+
+```{r}
+
+na_rows <- is.na(df)
+print(na_rows[! TRUE])
+data_clean <- na.omit(df)
+
+print(paste(length(data_clean), length(df)))
+print(paste('Number of missing values: ', length(df) - length(data_clean)))
+```
+
+4.1) Compute the mean and median of the trip duration in minutes
+
+```{r}
+
+mean <- mean(data_clean$tripduration) / 60 #in seconds -> minutes
+median <- median(data_clean$tripduration) / 60 #in seconds -> minutes
+
+print(paste('Mean :', formatC(mean, digits = 2, format = 'f'), 'mins'))
+print(paste('Median: ', formatC(median, digits = 2, format = 'f'), 'mins'))
+
+
+```
+
+4.2) Evaluate the minimum and maximum trip duration; does that sound like a reasonable value?
+
+```{r}
+
+min_duration <- min(data_clean$tripduration)
+max_duration <- max(data_clean$tripduration)
+
+print(paste('Minimum duration: ', format(round(min_duration / 60), nsmall = 2), 'min'))
+print(paste('Maximum duration: ', format(round(max_duration / 60)), 'min = ', format(round(max_duration / 3600)), 'hours = ', format(round(max_duration / (3600 * 24))), 'days'))
+
+
+```
+
+The minimum duration seems to be a reasonable value, while the maximum one appears to be too large / not reasonable.
+
+4.3) Repeat the calculation of the average (and the median) trip duration by excluding trips longer than 3 hours. Next, evaluate the number of skimmed entries.
+
+```{r}
+threshold <- 3 * 60 * 60 
+reduced_df <- subset(data_clean, tripduration <= threshold)
+
+reduced_mean <- mean(reduced_df$tripduration) / 60 
+reduced_median <- median(reduced_df$tripduration) / 60 
+
+print(paste('Reduced mean: ', format(round(reduced_mean, 2), nsmall = 2), 's'))
+print(paste('Reduced median: ', format(round(reduced_median, 2), nsmall = 2), 's'))
+
+print(data_clean)
+skimmed_values <- data_clean[data_clean$tripduration > threshold, ]
+print(paste('Number of skimmed values: ', length(skimmed_values)))
+```
+
+4.4) Plot the distribution of trip duration after the skimming of the previous point.
+
+```{r}
+
+hist(reduced_df$tripduration/60, xlab = 'Duration (min)', ylab = 'Counts', main = 'Distribution of trip duration', col = 'red', xaxt= 'n')  
+axis(1, at = c(0, 25, 50, 75))
+plot.new()
+```
+
+5)  Plot the monthly average trip duration.
+
+```{r}
+
+
+reduced_df$starttime <- as.POSIXct(reduced_df$starttime)
+reduced_df$month <- format(reduced_df$starttime, "%Y-%m")
+reduced_df$day <- format(reduced_df$starttime, "%Y-%m-%d")
+
+
+avg1 <- mean(reduced_df[reduced_df$month =='2019-02', ]$tripduration) / 60 
+avg2 <- mean(reduced_df[reduced_df$month =='2019-03', ]$tripduration) / 60 
+avg3 <- mean(reduced_df[reduced_df$month =='2019-04', ]$tripduration) / 60 
+avg4 <- mean(reduced_df[reduced_df$month =='2019-05', ]$tripduration) / 60 
+avg5 <- mean(reduced_df[reduced_df$month =='2019-06', ]$tripduration) / 60 
+
+avg <- c(avg1, avg2, avg3, avg4, avg4)
+
+months <- c('02', '03', '04', '05', '06')
+plot(months, avg, xaxt = 'n', xlab = "Month", ylab = "Average Trip Duration (min)", 
+     main = "Monthly Average Trip Duration")
+axis(1, at = months, labels = c('Feb', 'March', 'April', 'May', 'June'))
+
+
+```
+
+6.1) Plot the number of rides per day.
+
+```{r}
+plot(table(reduced_df$day), xlab = 'Day', ylab = 'Counts', main = 'Number of rides per day')
+
+```
+
+6.2) Plot the hourly distribution on weekdays and on weekends.
+
+```{r}
+### SELECTING THE DAYS ###
+weekdays_ <- weekdays(as.Date(reduced_df$day))
+
+reduced_df$isWeekend <- weekdays_ %in% c('sabato', 'domenica')
+
+reduced_df$starttime <- as.Date(reduced_df$starttime)
+reduced_df$hour <- substr(reduced_df$stoptime, 12, 19)
+
+reduced_df$hour <- strptime(reduced_df$hour, format = "%H:%M:%S")
+
+reduced_df$hour <- format(reduced_df$hour, format = "%H")
+
+
+
+plot(table(reduced_df$hour[reduced_df$isWeekend == FALSE]), xlab = 'Hour', ylab = 'Counts', main = 'Hourly distribution on weekdays')
+
+plot(table(reduced_df$hour[reduced_df$isWeekend == TRUE]), xlab = 'Hour', ylab = 'Counts', main = 'Hourly distribution on weekends')
+
+
+```
+
+6.3) Plot again the average hourly distribution on weekdays but separating customer and subscriber users.
+
+```{r}
+print(reduced_df$usertype)
+
+plot(table(reduced_df$hour[reduced_df$isWeekend == FALSE & reduced_df$usertype == 'Subscriber']), xlab = 'Day', ylab = 'Counts', main = 'Hourly distribution on weekdays (subscriber)')
+
+plot(table(reduced_df$hour[reduced_df$isWeekend == FALSE & reduced_df$usertype == 'Customer']), xlab = 'Day', ylab = 'Counts', main = 'Hourly distribution on weekdays (customer)')
+
+```
+
+7.1) Using the latitude and longitude information, evaluate the average speed (in km/h) of a user, discarding the trip lasting longer than 1 hour.
+
+```{r}
+less_than_1_hour <- subset(reduced_df, tripduration <= 60 * 60 )
+
+km_per_degree <- 111.32
+
+less_than_1_hour$speed <- sqrt(((less_than_1_hour$end.station.latitude - less_than_1_hour$start.station.latitude) * km_per_degree)^2 + ((less_than_1_hour$end.station.longitude - less_than_1_hour$start.station.longitude) * km_per_degree)^2) / (less_than_1_hour$tripduration / 3600)
+
+less_than_1_hour$routelength <- sqrt(((less_than_1_hour$end.station.latitude - less_than_1_hour$start.station.latitude) * km_per_degree)^2 + ((less_than_1_hour$end.station.longitude - less_than_1_hour$start.station.longitude) * km_per_degree)^2)
+hist(less_than_1_hour$speed, xlab = 'Mean speed [km/h]', ylab = 'Counts', main = 'Average speed per user', c = 'red', xaxt = 'n')
+axis(1, at = c(0, 10, 20, 30))
+
+```
+
+7.2) Plot the average speed as a function of route length for the following group of distances d \< 500 m, 500 m \< d \< 1000 m, 1000 m \< d \< 2000 m, 2000 m \< d \< 3000 m, d \> 3000 m and discarding trips longer than 1 hour.
+
+```{r}
+
+
+#INSERIRE FATTORE X 1000 PER CONVERSIONE M -> KM 
+d1 <- 500 / 1000
+d2 <- 1000 / 1000
+d3 <- 2000 / 1000
+d4 <- 3000 / 1000
+
+
+# DEVO SELEZIONARE I DATI IN BASE ALLA DISTANZA E DA QUESTI ESTRARRE LA VELOCITà MEDIA
+df_d1 <- subset(less_than_1_hour, routelength <= d1& routelength != 0)
+df_d2 <- subset(less_than_1_hour, routelength > d1 & routelength < d2)
+df_d3 <- subset(less_than_1_hour, routelength > d2 & routelength < d3)
+df_d4 <- subset(less_than_1_hour, routelength > d3 & routelength < d4)
+df_d5 <- subset(less_than_1_hour, routelength > d4)
+
+df_d1$speed <- sqrt(((df_d1$end.station.latitude - df_d1$start.station.latitude) * km_per_degree)^2 + ((df_d1$end.station.longitude - df_d1$start.station.longitude) * km_per_degree)^2) / (df_d1$tripduration / 3600)
+
+df_d2$speed <- sqrt(((df_d2$end.station.latitude - df_d2$start.station.latitude) * km_per_degree)^2 + ((df_d2$end.station.longitude - df_d2$start.station.longitude) * km_per_degree)^2) / (df_d2$tripduration / 3600)
+
+df_d3$speed <- sqrt(((df_d3$end.station.latitude - df_d3$start.station.latitude) * km_per_degree)^2 + ((df_d3$end.station.longitude - df_d3$start.station.longitude) * km_per_degree)^2) / (df_d3$tripduration / 3600)
+
+df_d4$speed <- sqrt(((df_d4$end.station.latitude - df_d4$start.station.latitude) * km_per_degree)^2 + ((df_d4$end.station.longitude - df_d4$start.station.longitude) * km_per_degree)^2) / (df_d4$tripduration / 3600)
+
+df_d5$speed <- sqrt(((df_d5$end.station.latitude - df_d5$start.station.latitude) * km_per_degree)^2 + ((df_d5$end.station.longitude - df_d5$start.station.longitude) * km_per_degree)^2) / (df_d5$tripduration / 3600)
+
+
+plot(df_d1$routelength, df_d1$speed, xlab = 'Route length [km]', ylab = 'Average speed [km/h]', col = 'red', main = 'd < 500 m')
+plot(df_d2$routelength, df_d2$speed, xlab = 'Route length [km]', ylab = 'Average speed [km/h]', col = 'blue', main = '500 m < d < 1000 m')
+plot(df_d3$routelength, df_d3$speed, xlab = 'Route length [km]', ylab = 'Average speed [km/h]', col = 'orange', main = '1000 m < d < 2000 m')
+plot(df_d4$routelength, df_d4$speed, xlab = 'Route length [km]', ylab = 'Average speed [km/h]', col = 'green', main = '2000 m < d < 3000 m')
+plot(df_d5$routelength, df_d5$speed, xlab = 'Route length [km]', ylab = 'Average speed [km/h]', col = 'pink', main = 'd > 3000 m')
+
+```
+
+7.3) Repeat the same graph, but show the results obtained separately for weekdays and weekends.
+
+```{r}
+df_d1wo <- subset(less_than_1_hour, routelength <= d1 & isWeekend == FALSE& routelength != 0)
+df_d2wo <- subset(less_than_1_hour, routelength > d1 & routelength < d2 & isWeekend == FALSE)
+df_d3wo <- subset(less_than_1_hour, routelength > d2 & routelength < d3 & isWeekend == FALSE)
+df_d4wo <- subset(less_than_1_hour, routelength > d3 & routelength < d4 & isWeekend == FALSE)
+df_d5wo <- subset(less_than_1_hour, routelength > d4 & isWeekend == FALSE)
+
+df_d1wo$speed <- sqrt(((df_d1wo$end.station.latitude - df_d1wo$start.station.latitude) * km_per_degree)^2 + ((df_d1wo$end.station.longitude - df_d1wo$start.station.longitude) * km_per_degree)^2) / (df_d1wo$tripduration / 3600)
+
+df_d2wo$speed <- sqrt(((df_d2wo$end.station.latitude - df_d2wo$start.station.latitude) * km_per_degree)^2 + ((df_d2wo$end.station.longitude - df_d2wo$start.station.longitude) * km_per_degree)^2) / (df_d2wo$tripduration / 3600)
+
+df_d3wo$speed <- sqrt(((df_d3wo$end.station.latitude - df_d3wo$start.station.latitude) * km_per_degree)^2 + ((df_d3wo$end.station.longitude - df_d3wo$start.station.longitude) * km_per_degree)^2) / (df_d3wo$tripduration / 3600)
+
+df_d4wo$speed <- sqrt(((df_d4wo$end.station.latitude - df_d4wo$start.station.latitude) * km_per_degree)^2 + ((df_d4wo$end.station.longitude - df_d4wo$start.station.longitude) * km_per_degree)^2) / (df_d4wo$tripduration / 3600)
+
+df_d5wo$speed <- sqrt(((df_d5wo$end.station.latitude - df_d5wo$start.station.latitude) * km_per_degree)^2 + ((df_d5wo$end.station.longitude - df_d5wo$start.station.longitude) * km_per_degree)^2) / (df_d5wo$tripduration / 3600)
+
+#par(fig=c(0.1,0.7,0.3,0.9))
+#par(mfrow=c(2,5))
+
+plot(df_d1wo$routelength, df_d1wo$speed, xlab = 'Route length [km]', ylab = 'Average speed [km/h]', col = 'red', main = 'd < 500 m')
+plot(df_d2wo$routelength, df_d2wo$speed, xlab = 'Route length [km]', ylab = 'Average speed [km/h]', col = 'blue', main = ' 500 m < d < 1000 m')
+plot(df_d3wo$routelength, df_d3wo$speed, xlab = 'Route length [km]', ylab = 'Average speed [km/h]', col = 'orange', main = '1000 m < d < 2000 m')
+plot(df_d4wo$routelength, df_d4wo$speed, xlab = 'Route length [km]', ylab = 'Average speed [km/h]', col = 'green', main = '2000 m < d < 3000 m')
+plot(df_d5wo$routelength, df_d5wo$speed, xlab = 'Route length [km]', ylab = 'Average speed [km/h]', col = 'pink', main = ' d > 3000 m')
+
+#-----------------------------------------------------------------------------#
+
+df_d1w <- subset(less_than_1_hour, routelength <= d1 & isWeekend == TRUE & routelength != 0)
+df_d2w <- subset(less_than_1_hour, routelength > d1 & routelength < d2 & isWeekend == TRUE)
+df_d3w <- subset(less_than_1_hour, routelength > d2 & routelength < d3 & isWeekend == TRUE)
+df_d4w <- subset(less_than_1_hour, routelength > d3 & routelength < d4 & isWeekend == TRUE)
+df_d5w <- subset(less_than_1_hour, routelength > d4 & isWeekend == TRUE)
+
+df_d1w$speed <- sqrt(((df_d1w$end.station.latitude - df_d1w$start.station.latitude) * km_per_degree)^2 + ((df_d1w$end.station.longitude - df_d1w$start.station.longitude) * km_per_degree)^2) / (df_d1w$tripduration / 3600)
+
+df_d2w$speed <- sqrt(((df_d2w$end.station.latitude - df_d2w$start.station.latitude) * km_per_degree)^2 + ((df_d2w$end.station.longitude - df_d2w$start.station.longitude) * km_per_degree)^2) / (df_d2w$tripduration / 3600)
+
+df_d3wo$speed <- sqrt(((df_d3wo$end.station.latitude - df_d3wo$start.station.latitude) * km_per_degree)^2 + ((df_d3wo$end.station.longitude - df_d3wo$start.station.longitude) * km_per_degree)^2) / (df_d3wo$tripduration / 3600)
+
+df_d4w$speed <- sqrt(((df_d4w$end.station.latitude - df_d4w$start.station.latitude) * km_per_degree)^2 + ((df_d4w$end.station.longitude - df_d4w$start.station.longitude) * km_per_degree)^2) / (df_d4w$tripduration / 3600)
+
+df_d5w$speed <- sqrt(((df_d5w$end.station.latitude - df_d5w$start.station.latitude) * km_per_degree)^2 + ((df_d5w$end.station.longitude - df_d5w$start.station.longitude) * km_per_degree)^2) / (df_d5w$tripduration / 3600)
+
+
+plot(df_d1w$routelength, df_d1w$speed, xlab = 'Route length [km]', ylab = 'Average speed [km/h]', col = 'red', main = 'd < 500 m')
+plot(df_d2w$routelength, df_d2w$speed, xlab = 'Route length [km]', ylab = 'Average speed [km/h]', col = 'blue', main = '500 m < d < 1000 m')
+plot(df_d3w$routelength, df_d3w$speed, xlab = 'Route length [km]', ylab = 'Average speed [km/h]', col = 'orange', main = '1000 m < d < 2000 m')
+plot(df_d4w$routelength, df_d4w$speed, xlab = 'Route length [km]', ylab = 'Average speed [km/h]', col = 'green', main = '2000 m < d < 3000 m')
+plot(df_d5w$routelength, df_d5w$speed, xlab = 'Route length [km]', ylab = 'Average speed [km/h]', col = 'pink',  main = 'd > 3000 m')
+```
+
+8.1) Find the most common start station and the least popular end station.
+
+```{r}
+
+start_station <- table(reduced_df$start.station.name)
+plot(start_station, xlab = 'Start station name', ylab = 'Frequency', main = 'Distribution of the starting stations')
+
+end_station <- table(reduced_df$end.station.name)
+
+max_index <- which.max(as.vector(start_station))
+print(max_index)
+print(paste('Most common starting station: ', reduced_df$start.station.name[max_index]))
+print(paste('Least common ending station: ', reduced_df$end.station.name[which.min(as.vector(end_station))]))
+
+```
+
+8.3) Find the three most common routes (start and end station) and the three least popular ones
+
+```{r}
+
+reduced_df$routes <- paste(reduced_df$start.station.name, reduced_df$end.station.name, sep = ', ')
+print(reduced_df)
+
+routes <- table(reduced_df$routes)
+sorted_routes <- sort(routes, decreasing = TRUE)
+
+print(paste('Three most common routes:', names(head(sorted_routes, 3)), 'Counts:', head(sorted_routes, 3)))
+print(paste('Three least common routes:', names(tail(sorted_routes, 3)), 'Counts:', tail(sorted_routes, 3)))
+
+```
