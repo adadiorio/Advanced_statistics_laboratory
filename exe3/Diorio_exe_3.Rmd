@@ -1,6 +1,10 @@
 ---
 title: "Exercise_4_Adv_statistics"
-output: html_document
+author: "Ada D'Iorio"
+output: 
+html_document: 
+number_sections: true 
+theme: spacelab 
 date: "2024-05-04"
 editor_options: 
   markdown: 
@@ -33,11 +37,11 @@ library(ggplot2)
 
 N_par <- c(4, 1, 3, 1, 5, 3)
 Dt <- 10 #s
+lambda <- length(N_par) #rate del processo poissoniano
+N <- sum(N_par)+1
 
-## Assuming a positive uniform prior for mu 
 
-
-## Defining the likelihood, it is the function that represents the probability of measung a given value of D before taking the measure 
+## Defining the likelihood, it is the function that represents the probability of measuring a given value of D before taking the measure 
 
 likelihood <- function(mu, data) {
   prod(dpois(data, lambda = mu))
@@ -49,44 +53,53 @@ posterior_un <- sapply(mu_values, likelihood, data = N_par)
 
 posterior <- posterior_un / sum(posterior_un)
 
-N <- length(N_par)
-mean_analytical <- sum(N_par + 1) / (N + 1)
-variance_analytical <- (sum(N_par) + 1) / ((N+1)^2 * (N + 2))
 
-mean_numerical <- sum(mu_values * posterior)
-median_numerical <- quantile(mu_values, 0.5, probs = posterior)[[1]]
-variance_numerical <- sum((mu_values - mean_numerical)^2 * posterior)
+## ----------------------- Calcolo analitico ------------------------------------
 
-cat('Posterior Mean (Analytical):', mean_analytical, '\n')
-cat('Posterior Variance (Analytical):', variance_analytical, '\n')
+## The product of N poissonian distributions is an erlang distribution, we have to 
+## use these parameters in order to compute the calculus 
+
+
+mean_erlang <- N / lambda 
+median <- as.integer((lambda +1 ) / 2)
+median_value <- N_par[median]
+var_erlang <- N/lambda^2
+
+cat('Posterior Mean (Analytical):', mean_erlang, '\n')
+cat('Posterior Median (Analytical):', median_value, '\n')
+cat('Posterior Variance (Analytical):', var_erlang, '\n')
+cat('------------------------------------------------- \n')
+
+## ------------------------  Calcolo numerico  ----------------------------------
+
+mean_numerical <- sum(mu_values * posterior) # calcolo media numerica (integrazione)
+
+median_numerical <- quantile(N_par, probs = 0.5)[[1]]
+
+variance_numerical <- sum((mu_values^2 * posterior)) - mean_numerical^2
 
 
 cat('Posterior Mean (Numerical):', mean_numerical, '\n')
 cat('Posterior Median (Numerical):', median_numerical, '\n')
 cat('Posterior Variance (Numerical):', variance_numerical, '\n')
 
-# -------------------------------
+# --------------------------------------------------------------------------------
 
 df <- data.frame(mu = mu_values, posterior = posterior)
 
-# Create the ggplot object
 ggplot(df, aes(x = mu, y = posterior)) +
   geom_point(color = 'firebrick', size = 0.7, alpha = 0.9, shape = 15) +
-  geom_histogram(fill = "salmon", stat = 'identity') +  # Use geom_col for a histogram-like plot
+  geom_histogram(fill = "salmon", stat = 'identity') +  
   labs(x = expression(mu),
        y = 'Posterior Probability Density',
-       title = "Posterior Distribution (Positive Uniform Prior)") +
+       title = "Posterior Distribution (Positive Uniform Prior)") +  
   xlim(0, 10) +
-  ylim(0, max(posterior * 1.1)) + 
-  theme_light() +  # Use a light theme with white background
-  theme(panel.background = element_rect(fill = "white")) +  # Set the panel background to white 
-  geom_vline(xintercept = mean_numerical, linetype = 'dashed', color = 'red')
+  ylim(0, max(posterior * 1.1)) +  # Use 'df$posterior' instead of just 'posterior'
+  theme_light() +  
+  theme(panel.background = element_rect(fill = "white")) +  
+  geom_vline(xintercept = mean_par, linetype = 'dashed', color = 'red') + 
+  scale_linetype_manual(values = 'dashed', name = "mean_par") 
 
-# ---------------------------------------
-
-
-
-## RIVEDERE VALOR
 ```
 
 (b) Assuming a $\textit{Gamma}$ prior such that the expected value is
@@ -103,28 +116,31 @@ library(ggplot2)
 mu_prior <- 3
 sigma_prior <- 1
 
-k <- (mu_prior / sigma_prior)^2
+k <- (mu_prior / sigma_prior)^2 # evaluating considering a gamma prior
 theta <- sigma_prior^2 / mu_prior
+
 
 x <- seq(0, 10, by = 0.01)  # Range of values for the Gamma distribution
 
 prior_density <- function(x, shape, rate) {
-  dgamma(x, shape = shape, rate = rate)
+  rgamma(length(x), shape = shape, rate = rate)
 }
 
-posterior_density <- function(mu, data) {
+posterior_density <- function(mu, data) { # the posterior is the product of a 
+                                          # gamma dot a poisson likelihood 
   shape_prior <- k
   rate_prior <- theta
   prior <- dgamma(mu, shape = shape_prior, rate = rate_prior)
   likelihood <- prod(dpois(data, lambda = mu))
   posterior <- prior * likelihood
-  return(posterior)
+  return(posterior ) # Normalizing 
 }
 
 
-# Plot the Gamma prior distribution -------------------------
+# --------------------- Plot the Gamma prior distribution -------------------------
 
-prior_values <- prior_density(x, shape = k, rate = theta)
+prior_values <- dgamma(x, shape = k, rate = theta)
+# prior values for the plot 
 
 df2 <- data.frame(mu = x, posterior = prior_values)
 
@@ -142,45 +158,44 @@ ggplot(df2, aes(x = mu, y = posterior)) +
 
 # -------------------------------------------------------
 
+mu_values <- prior_density(x, k, theta) # extracting values from a gamma prior
 
-posterior_values <- sapply(mu_values, posterior_density, data = N_par)
+hist(mu_values, breaks = 30, main = 'Posterior distribution for mu', xlab = expression(mu), ylab = 'Posterior Probability Density', col = 'red', freq = FALSE)
+lines(x, mu_values, type = 'l', col = 'blue')
+grid()
 
-# Normalize posterior density
+posterior_values <- sapply(prior_values, posterior_density, data = N_par)
 posterior_density_normalized <- posterior_values / sum(posterior_values)
-
-
-# Plot posterior distribution --------------------------
-
-df3 <- data.frame(mu = mu_values, posterior = posterior_density_normalized)
-
-# Create the ggplot object
-ggplot(df3, aes(x = mu, y = posterior)) +
-  geom_point(color = 'firebrick', size = 0.7, alpha = 0.9, shape = 15) +
-  geom_histogram(fill = "pink", stat = 'identity') +  # Use geom_col for a histogram-like plot
-  labs(x = expression(mu),
-       y = 'Posterior Probability Density',
-       title = paste('Posterior Distribution for mu ' )) +
-  xlim(0, 10) +
-  ylim(0, max(posterior * 1.1)) + 
-  theme_light() +  # Use a light theme with white background
-  theme(panel.background = element_rect(fill = "white"))  # Set the panel background to white
 
 # -------------------------------------------------------
 
-
 N <- length(N_par)
-mean_analytical <- (sum(N_par) + mu_prior) / (N + 1)
-median_analytical <- qgamma(0.5, shape = k + sum(N_par, scale = theta + 1))
-variance_analytical <- (median_analytical) / (N + 1)
 
-mean_numerical <- sum(mu_values * posterior)
-median_numerical <- quantile(mu_values, 0.5, probs = posterior_density_normalized)[[1]]
-variance_numerical <- sum((mu_values - mean_numerical)^2 * posterior_density_normalized)
+## ----------------------- Calcolo analitico --------------------------------
+## Media della posterior normalizzata 
+## In questo caso i valori di mu seguono una 
+
+mean_analytical <- mean(mu_values)
+variance_analytical <- sd(mu_values)^2
+
+## ------------------------  Calcolo numerico  ----------------------------------
+
+# In questo caso i mu values dovrebbero essere generati dalla gamma prior 
+
+mean_numerical <-  sum(mu_values * posterior_values) / sum(posterior_values)
+
+median_numerical <- quantile(mu_values, probs = 0.5)[[1]]
+
+variance_numerical <- sum((mu_values^2 * posterior_values)) / sum(posterior_values) - mean_numerical^2
+
+
+## ------------------------------------------------------------------------------
 
 cat('Posterior Mean (Analytical):', mean_analytical, '\n')
-cat("Posterior Median (Analytical):", median_analytical, "\n")
+#cat("Posterior Median (Analytical):", median_analytical, "\n")
 cat('Posterior Variance (Analytical):', variance_analytical, '\n')
 
+cat('----------------------------------------------------------------------- \n')
 
 cat('Posterior Mean (Numerical):', mean_numerical, '\n')
 cat('Posterior Median (Numerical):', median_numerical, '\n')
@@ -188,7 +203,28 @@ cat('Posterior Variance (Numerical):', variance_numerical, '\n')
 
 ## DOPO AVER AGGIUSTATO IL VALORE DELLA MEDIA AGGIUNGERLA SUL GRAFICO 
 
-### RIVEDERE
+## ------------------Plot posterior distribution --------------------------
+
+# Plot posterior distribution --------------------------
+
+#df3 <- data.frame(mu = mu_values, posterior = posterior_density_normalized)
+
+# Create the ggplot object
+#ggplot(df3, aes(x = mu, y = posterior)) +
+#  geom_point(color = 'firebrick', size = 0.7, alpha = 0.9, shape = 15) +
+ # geom_histogram(fill = "pink", stat = 'identity') +  # Use geom_col for a histogram-like plot
+#  labs(x = expression(mu),
+ #      y = 'Posterior Probability Density',
+  #     title = paste('Posterior Distribution for mu ' )) +
+#  xlim(0, 10) +
+#  ylim(0, max(posterior * 1.1)) + 
+#  theme_light() +  # Use a light theme with white background
+#  theme(panel.background = element_rect(fill = "white")) +  
+#  geom_vline(xintercept = mean_numerical, linetype = 'dashed', color = 'red') + 
+#  scale_linetype_manual(values = 'dashed', name = "mean_numerical") 
+
+
+### RIVEDERE VALORI 
 ```
 
 (c) Evaluate a 95% credibility interval for the results obtained with
@@ -228,7 +264,7 @@ A researcher A wants to evaluate the efficiency of detector 2 (Det2).
 For this purpose, he sets up the apparatus shown in the figure 1, where
 Det2 is sandwiched between Det1 and Det3. Let $\textbf{n}$ be the number
 of signals recorded simultaneously by Det1 and Det3, and $\textbf{r}$ be
-those also recorded by Det2, researcher $\textbf{A}$ obtaines
+those also recorded by Det2, researcher $\textbf{A}$ obtains
 $n \ = \ 500$ and $r \ = \ 312$.
 
 ![](images/Screenshot%202024-05-04%20220343.png)
@@ -283,12 +319,12 @@ uniform_posterior_values <- posterior(r, p_values, n, uniform_prior)
 jeffreys_posterior_values <- posterior(r, p_values, n, jeffreys_prior)
 
 
-# -------------------------- MEAN AND VARIANCE -----------------------------
+## -------------------------- MEAN AND VARIANCE -----------------------------
 
 
 calculate_posterior_mean_variance <- function(delta, posterior_values, p_values) {
   
-  posterior_mean <- sum((p_values * posterior_values) * delta)
+  posterior_mean <- sum((p_values * delta * posterior_values))
   
   posterior_variance <- sum((p_values - posterior_mean)^2 * posterior_values) * delta
   return(list(mean = posterior_mean, variance = posterior_variance))
@@ -325,7 +361,6 @@ grid()
 p_prior_hist <- runif(201, 0, 1)
 hist(p_prior_hist, freq = FALSE, col = 'lightpink', main = 'Uniform Prior Distribution', xlab = 'Value', ylab = 'Density Distribution Function')
 curve(uniform_prior, add = TRUE, col = 'black', lwd = 2, n = 1000)
-
 
 
 j_prior_hist <- rbeta(201, shape1 = alpha, shape2 = beta)
@@ -572,6 +607,7 @@ legend("topright", legend = c("Mode", "95% Credibility Interval"), col = c("blac
 
 ```{r}
 
+cat(sprintf('The most probable value for p in this case is %.2f',  mean(modes)))
 ## Should I evaluate the prior distribution also in this case?
 ## Should I evaluate the maximum probability also in this case?
 
@@ -597,3 +633,56 @@ Using a Bayesian approach, for all parties:
 
 (b) Sample size to obtain a margin of error less or equal than
     $\pm \ 3 \%$ for each party.
+
+```{r}
+
+N_voters <- 200
+preferences <- c(51, 31, 45, 67)
+
+N2_voters <- 100
+preferences2 <- c(32, 14, 26, 28)
+
+## The prior is related to the probability of having a given vote to a party, 
+## using a uniform prior we mean that the probability of a vote to a section is 
+## uniform, there's no preferred party (so it's related to the preferences)
+
+posterior_alpha_uniform <- 1 + preferences
+posterior_beta_uniform <- 1 + N_voters - preferences
+
+# Calculate expected percentage of votes
+expected_percentage_uniform <- (alpha_uniform / (alpha_uniform + beta_uniform)) * 100
+
+
+lower_ci_uniform <- qbeta(0.16, alpha_uniform, beta_uniform) * 100
+upper_ci_uniform <- qbeta(0.84, alpha_uniform, beta_uniform) * 100
+
+# Print results
+cat("Uniform Prior:\n")
+cat("Expected Percentage of Votes:", expected_percentage_uniform, "\n")
+cat("68% Credibility Interval:\n")
+cat("Party A:", lower_ci_uniform[1], "-", upper_ci_uniform[1], "\n")
+cat("Party B:", lower_ci_uniform[2], "-", upper_ci_uniform[2], "\n")
+cat("Party C:", lower_ci_uniform[3], "-", upper_ci_uniform[3], "\n")
+cat("Party D:", lower_ci_uniform[4], "-", upper_ci_uniform[4], "\n\n")
+
+alpha_uniform2 <- 1 + preferences2
+beta_uniform2 <- 1 + N2_voters - preferences2
+
+# Calculate expected percentage of votes
+expected_percentage_uniform2 <- (alpha_uniform2 / (alpha_uniform2 + beta_uniform2)) * 100
+
+
+lower_ci_uniform2 <- qbeta(0.16, alpha_uniform2, beta_uniform2) * 100
+upper_ci_uniform2 <- qbeta(0.84, alpha_uniform2, beta_uniform2) * 100
+
+# Print results
+cat("Next poll:\n")
+cat("Expected Percentage of Votes:", expected_percentage_uniform2, "\n")
+cat("68% Credibility Interval:\n")
+cat("Party A:", lower_ci_uniform2[1], "-", upper_ci_uniform2[1], "\n")
+cat("Party B:", lower_ci_uniform2[2], "-", upper_ci_uniform2[2], "\n")
+cat("Party C:", lower_ci_uniform2[3], "-", upper_ci_uniform2[3], "\n")
+cat("Party D:", lower_ci_uniform2[4], "-", upper_ci_uniform2[4], "\n\n")
+
+
+```
