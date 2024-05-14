@@ -1,10 +1,12 @@
 ---
-title: "Exercise_4_Adv_statistics"
+title: "Exercise_3_Adv_statistics"
 author: "Ada D'Iorio"
 output: 
 html_document: 
 number_sections: true 
 theme: spacelab 
+pdf_document:
+    latex_engine: xelatex
 date: "2024-05-04"
 editor_options: 
   markdown: 
@@ -65,9 +67,9 @@ median <- as.integer((lambda +1 ) / 2)
 median_value <- N_par[median]
 var_erlang <- N/lambda^2
 
-cat('Posterior Mean (Analytical):', mean_erlang, '\n')
-cat('Posterior Median (Analytical):', median_value, '\n')
-cat('Posterior Variance (Analytical):', var_erlang, '\n')
+paste(sprintf('Posterior Mean (Analytical): %.2f', mean_erlang))
+paste(sprintf('Posterior Median (Analytical): %.2f', median_value))
+paste(sprintf('Posterior Variance (Analytical): %.2f', var_erlang))
 cat('------------------------------------------------- \n')
 
 ## ------------------------  Calcolo numerico  ----------------------------------
@@ -79,9 +81,9 @@ median_numerical <- quantile(N_par, probs = 0.5)[[1]]
 variance_numerical <- sum((mu_values^2 * posterior)) - mean_numerical^2
 
 
-cat('Posterior Mean (Numerical):', mean_numerical, '\n')
-cat('Posterior Median (Numerical):', median_numerical, '\n')
-cat('Posterior Variance (Numerical):', variance_numerical, '\n')
+paste(sprintf('Posterior Mean (Numerical): %.2f', mean_numerical))
+paste(sprintf('Posterior Median (Numerical): %.2f', median_numerical))
+paste(sprintf('Posterior Variance (Numerical): %.2f', variance_numerical))
 
 # --------------------------------------------------------------------------------
 
@@ -89,7 +91,7 @@ df <- data.frame(mu = mu_values, posterior = posterior)
 
 ggplot(df, aes(x = mu, y = posterior)) +
   geom_point(color = 'firebrick', size = 0.7, alpha = 0.9, shape = 15) +
-  geom_histogram(fill = "salmon", stat = 'identity') +  
+  geom_histogram(fill = "salmon", stat = 'identity', alpha = 0.2) +  
   labs(x = expression(mu),
        y = 'Posterior Probability Density',
        title = "Posterior Distribution (Positive Uniform Prior)") +  
@@ -97,8 +99,8 @@ ggplot(df, aes(x = mu, y = posterior)) +
   ylim(0, max(posterior * 1.1)) +  # Use 'df$posterior' instead of just 'posterior'
   theme_light() +  
   theme(panel.background = element_rect(fill = "white")) +  
-  geom_vline(xintercept = mean_par, linetype = 'dashed', color = 'red') + 
-  scale_linetype_manual(values = 'dashed', name = "mean_par") 
+  geom_vline(xintercept = mean_erlang, linetype = 'dashed', color = 'red') + 
+  scale_linetype_manual(values = 'dashed', name = "mean_erlang") 
 
 ```
 
@@ -119,11 +121,14 @@ sigma_prior <- 1
 k <- (mu_prior / sigma_prior)^2 # evaluating considering a gamma prior
 theta <- sigma_prior^2 / mu_prior
 
+k_prime <- 26 # parametri della gamma posterior 
+theta_prime <- 9 
 
 x <- seq(0, 10, by = 0.01)  # Range of values for the Gamma distribution
 
 prior_density <- function(x, shape, rate) {
-  rgamma(length(x), shape = shape, rate = rate)
+  prior <- rgamma(x, shape = shape, rate = rate)
+  return(prior)
 }
 
 posterior_density <- function(mu, data) { # the posterior is the product of a 
@@ -140,31 +145,17 @@ posterior_density <- function(mu, data) { # the posterior is the product of a
 # --------------------- Plot the Gamma prior distribution -------------------------
 
 prior_values <- dgamma(x, shape = k, rate = theta)
-# prior values for the plot 
 
-df2 <- data.frame(mu = x, posterior = prior_values)
-
-# Create the ggplot object
-ggplot(df2, aes(x = mu, y = posterior)) +
-  geom_point(color = 'firebrick', size = 0.7, alpha = 0.9, shape = 15) +
-  geom_histogram(fill = "salmon", stat = 'identity') +  # Use geom_col for a histogram-like plot
-  labs(x = expression(mu),
-       y = 'Prior Probability Density',
-       title = "Gamma prior") +
-  xlim(0, 10) +
-  ylim(0, max(posterior * 1.1)) + 
-  theme_light() +  # Use a light theme with white background
-  theme(panel.background = element_rect(fill = "white"))  # Set the panel background to white
 
 # -------------------------------------------------------
 
 mu_values <- prior_density(x, k, theta) # extracting values from a gamma prior
 
-hist(mu_values, breaks = 30, main = 'Posterior distribution for mu', xlab = expression(mu), ylab = 'Posterior Probability Density', col = 'red', freq = FALSE)
+hist(mu_values, breaks = 30, main = 'Probability Density Function for mu', xlab = expression(mu), ylab = 'Probability Density Function', col = 'red', freq = FALSE)
 lines(x, mu_values, type = 'l', col = 'blue')
 grid()
 
-posterior_values <- sapply(prior_values, posterior_density, data = N_par)
+posterior_values <- sapply(x, posterior_density, data = N_par)
 posterior_density_normalized <- posterior_values / sum(posterior_values)
 
 # -------------------------------------------------------
@@ -173,20 +164,30 @@ N <- length(N_par)
 
 ## ----------------------- Calcolo analitico --------------------------------
 ## Media della posterior normalizzata 
-## In questo caso i valori di mu seguono una 
+## In questo caso i valori di mu seguono una distribuzione data dal prodotto 
+## di una gamma prior e una poisson posterior 
 
-mean_analytical <- mean(mu_values)
-variance_analytical <- sd(mu_values)^2
+mu_prime <- prior_density(x, k_prime, theta_prime) #posterior: is a gamma distribution with different parameters
+
+#lambda <-  1 / theta_prime
+
+#mean_analytical <- N * theta_prime
+#median <- as.integer((1/theta_prime +1 ) / 2)
+#median_value <- N_par[median]
+#variance_analytical <- N/lambda^2
+
+mean_analytical <- mean(mu_prime)
+variance_analytical <- var(mu_prime)
 
 ## ------------------------  Calcolo numerico  ----------------------------------
 
 # In questo caso i mu values dovrebbero essere generati dalla gamma prior 
 
-mean_numerical <-  sum(mu_values * posterior_values) / sum(posterior_values)
+mean_numerical <-  sum(mu_prime * posterior_values) / sum(posterior_values)
 
-median_numerical <- quantile(mu_values, probs = 0.5)[[1]]
+median_numerical <- quantile(mu_prime, probs = 0.5)[[1]]
 
-variance_numerical <- sum((mu_values^2 * posterior_values)) / sum(posterior_values) - mean_numerical^2
+variance_numerical <- sum((mu_prime^2 * posterior_values)) / sum(posterior_values) - mean_numerical^2
 
 
 ## ------------------------------------------------------------------------------
@@ -205,26 +206,23 @@ cat('Posterior Variance (Numerical):', variance_numerical, '\n')
 
 ## ------------------Plot posterior distribution --------------------------
 
-# Plot posterior distribution --------------------------
-
-#df3 <- data.frame(mu = mu_values, posterior = posterior_density_normalized)
+df3 <- data.frame(mu = x, posterior = posterior_density_normalized)
 
 # Create the ggplot object
-#ggplot(df3, aes(x = mu, y = posterior)) +
-#  geom_point(color = 'firebrick', size = 0.7, alpha = 0.9, shape = 15) +
- # geom_histogram(fill = "pink", stat = 'identity') +  # Use geom_col for a histogram-like plot
-#  labs(x = expression(mu),
- #      y = 'Posterior Probability Density',
-  #     title = paste('Posterior Distribution for mu ' )) +
-#  xlim(0, 10) +
-#  ylim(0, max(posterior * 1.1)) + 
-#  theme_light() +  # Use a light theme with white background
-#  theme(panel.background = element_rect(fill = "white")) +  
-#  geom_vline(xintercept = mean_numerical, linetype = 'dashed', color = 'red') + 
-#  scale_linetype_manual(values = 'dashed', name = "mean_numerical") 
+ggplot(df3, aes(x = mu, y = posterior)) +
+  geom_point(color = 'firebrick', size = 0.7, alpha = 0.9, shape = 15) +
+ geom_histogram(fill = "pink", stat = 'identity', alpha = 0.2) +  # Use geom_col for a histogram-like plot
+  labs(x = expression(mu),
+       y = 'Posterior Probability Density',
+       title = paste('Posterior Distribution for', expression(mu) )) +
+  xlim(0, 10) +
+  ylim(0, max(posterior * 1.1)) + 
+  theme_light() +  # Use a light theme with white background
+  theme(panel.background = element_rect(fill = "white")) #+  
+ # geom_vline(xintercept = mean_numerical, linetype = 'dashed', color = 'red') + 
+ # scale_linetype_manual(values = 'dashed', name = "mean_numerical") 
 
 
-### RIVEDERE VALORI 
 ```
 
 (c) Evaluate a 95% credibility interval for the results obtained with
@@ -242,7 +240,9 @@ lower_bound <- min(mu_values[cumulative_posterior >= 0.025])
 upper_bound <- max(mu_values[cumulative_posterior <= 0.975])
 
 # Print the 95% credibility interval
-cat("95% Credibility Interval (Gamma Prior): [", lower_bound, ", ", upper_bound, "]\n")
+cat(sprintf("95%% Credibility Interval (Gamma Prior) : [%.4f, %.4f]", lower_bound, upper_bound))
+
+cat('\n')
 
 # Calculate the mean and standard deviation of the posterior distribution
 posterior_mean <- mean_analytical
@@ -253,7 +253,8 @@ normal_lower_bound <- qnorm(0.025, mean = posterior_mean, sd = posterior_sd)
 normal_upper_bound <- qnorm(0.975, mean = posterior_mean, sd = posterior_sd)
 
 # Print the 95% credibility interval using normal approximation
-cat("95% Credibility Interval (Normal Approximation): [", normal_lower_bound, ", ", normal_upper_bound, "]\n")
+cat(sprintf("95%% Credibility Interval (Normal Approximation): [%.4f, %.4f]", normal_lower_bound, normal_upper_bound))
+
 
 
 ```
@@ -311,50 +312,81 @@ posterior <- function(r, p, n, prior_function) {
 
 n_samples <- 201
 
-p_values <- seq(0, 1, length.out = n_samples)
+p_values <- seq(0, 1, length.out = n_samples) # values used to generate the probability distribution 
 delta <- 1 / n_samples
 
 
-uniform_posterior_values <- posterior(r, p_values, n, uniform_prior)
-jeffreys_posterior_values <- posterior(r, p_values, n, jeffreys_prior)
+uniform_posterior_values <- posterior(r, p_values, n, uniform_prior) # generating posterior using a uniform prior
+jeffreys_posterior_values <- posterior(r, p_values, n, jeffreys_prior) # generating posterior using a jeffreys prior 
 
 
 ## -------------------------- MEAN AND VARIANCE -----------------------------
 
 
-calculate_posterior_mean_variance <- function(delta, posterior_values, p_values) {
+calculate_posterior_mean_variance <- function(posterior_values, p) {
   
-  posterior_mean <- sum((p_values * delta * posterior_values))
+  posterior_values <- posterior_values / sum(posterior_values)
   
-  posterior_variance <- sum((p_values - posterior_mean)^2 * posterior_values) * delta
+  posterior_mean <- sum(p * posterior_values)
+  
+  posterior_variance <- sum(p^2 * posterior_values) - (posterior_mean)^2 
   return(list(mean = posterior_mean, variance = posterior_variance))
 }
 
-uniform_mean_variance <- calculate_posterior_mean_variance(delta, uniform_posterior_values, p_values)
+alpha_uniform <- r + 1
+beta_uniform <- n - r + 1
+uniform_values_extracted <- rbeta(n_samples, alpha_uniform, beta_uniform)
+
+uniform_mean_variance <- calculate_posterior_mean_variance(uniform_posterior_values, uniform_values_extracted)
 
 
-jeffreys_mean_variance <- calculate_posterior_mean_variance(delta, jeffreys_posterior_values, p_values)
+alpha_jeffreys <- r + 1/2
+beta_jeffreys <- n - r + 1/2 
+jeffreys_values_extracted <- rbeta(n_samples, alpha_jeffreys, beta_jeffreys)
 
+posterior_density <- density(jeffreys_values_extracted, from = 0, to = 1, n = n_samples)
+
+# Normalize the density values to make them sum to 1
+posterior_density$y <- posterior_density$y / sum(posterior_density$y)
+
+# Compute the mean and variance using the posterior density
+jeffreys_mean_variance <- calculate_posterior_mean_variance(posterior_density$y, posterior_density$x)
 
 mean <- alpha /( alpha + beta) # Mean of the Jeffrey's prior distribution 
 mode <- (alpha - 1)/( alpha + beta - 2)
 
 cat("Uniform Prior (U(0, 1)):\n")
-cat("Posterior Mean:", uniform_mean_variance$mean, "\n")
-cat("Posterior Variance:", uniform_mean_variance$variance, "\n\n")
+print(sprintf("Posterior Mean: %.4f", uniform_mean_variance$mean))
+print(sprintf("Posterior Variance: %.4f", uniform_mean_variance$variance))
 
 cat("Jeffrey's Prior (Beta(1/2, 1/2)):\n")
-cat("Posterior Mean:", jeffreys_mean_variance$mean, "\n")
-cat("Posterior Variance:", jeffreys_mean_variance$variance, "\n")
+print(sprintf("Posterior Mean: %.4f", jeffreys_mean_variance$mean))
+print(sprintf("Posterior Variance: %.4f", jeffreys_mean_variance$variance))
 
 
 ## -------------------------- PLOTTING ------------------------------
 
-plot(p_values, uniform_posterior_values, type = 'l', main = 'Posterior Density Function (uniform prior)', xlab = 'p', ylab = 'Posterior Density Function')
+# Assuming p_values and uniform_posterior_values are your data vectors
+
+# Plot the density line
+plot(p_values, uniform_posterior_values, type = 'l', 
+     main = 'Posterior Density Function (uniform prior)', 
+     xlab = 'p', ylab = 'Posterior Density Function')
+
+# Use polygon to fill the area under the curve
+polygon(c(p_values, rev(p_values)), 
+        c(uniform_posterior_values, rep(0, length(uniform_posterior_values))), 
+        col=rgb(1, 0, 0, alpha=0.5), border="red")
+
+# Add grid lines for better readability
 grid()
 
 
+
 plot(p_values, jeffreys_posterior_values, type = 'l', main = 'Posterior Density Function (Jeffrey\'s prior)', xlab = 'p', ylab = 'Posterior Density Function')
+polygon(c(p_values, rev(p_values)), 
+        c(jeffreys_posterior_values, rep(0, length(jeffreys_posterior_values))),
+        col=rgb(0, 0, 1, alpha=0.5), border="blue")
 grid()
 
 
@@ -371,7 +403,7 @@ lines(c(mean , mean), c(0, 0.2), lty=2, lwd=2)
 
 legend('topright', legend = expression(paste("Beta Prior Density (", alpha == 1/2, ", ", beta == 1/2, ")", sep = "")), col = "red", lwd = 2)
 
-print(paste('Mean =', mean, ' Mode = ', mode))
+#print(paste('Mean =', mean, ' Mode = ', mode))
 
 ```
 
@@ -390,14 +422,17 @@ nB <- 10
 rB <- 10 
     
 uniform_posterior_valuesB <- posterior(rB, p_values, nB, uniform_prior)    
-uniform_mean_varianceB <- calculate_posterior_mean_variance(delta, uniform_posterior_valuesB, p_values)
+uniform_mean_varianceB <- calculate_posterior_mean_variance( uniform_posterior_valuesB, p_values)
 
 plot(p_values, uniform_posterior_valuesB, type = 'l', main = 'Posterior Density Function (uniform prior)', xlab = 'p', ylab = 'Posterior Density Function')
+polygon(c(p_values, rev(p_values)), 
+        c(uniform_posterior_valuesB, rep(0, length(uniform_posterior_valuesB))),
+        col=rgb(0, 0, 1, alpha=0.5), border="blue")
 grid()
 
     
-cat('Mean of the posterior distribution (researcher B): ', uniform_mean_varianceB$mean, ' \n ')
-cat('Variance of the posterior distribution (researcher B): ', uniform_mean_varianceB$variance, ' \n')
+print(sprintf('Mean of the posterior distribution (researcher B): %.4f ', uniform_mean_varianceB$mean))
+paste(sprintf('Variance of the posterior distribution (researcher B): %.4f', uniform_mean_varianceB$variance))
     
 ## CONTROLLARE I VALORI OTTENUTI 
     
@@ -409,15 +444,43 @@ cat('Variance of the posterior distribution (researcher B): ', uniform_mean_vari
 
 ```{r}
 # Vedere se i valori sono corretti e rifare 
+# Let's keep again the values from researcher A
 
+n <- 500
+r <- 312
 
+new_prior <- uniform_posterior_valuesB # now the new prior is the posterior of the point above
 
+new_post <- new_prior * likelihood(r, p_values, n)
+
+new_post_mean <- calculate_posterior_mean_variance( new_post, p_values)
+
+print(sprintf('Mean of the new posterior %.4f', new_post_mean$mean))
+print(sprintf('Variance of the new posterior %.4f:', new_post_mean$variance))
+
+plot(p_values, new_post, main = 'Posterior values', xlab = 'p', ylab = 'Probability Density Function', type = 'l')
+polygon(c(p_values, rev(p_values)), 
+        c(new_post, rep(0, length(new_post))),
+        col=rgb(0, 1, 0, alpha=0.5), border="green")
+grid()
 ```
 
 (e) $\textbf{[Optional]}$ Compute $95%$ credible interval using the
     posterior of the previous point (d).
 
 ```{r}
+
+
+# Function to calculate the cumulative posterior probability
+#cumulative_posterior <- cumsum(new_post)
+
+# Find the lower and upper bounds of the 95% credibility interval
+#lower_bound <- min(p_values[cumulative_posterior >= 0.025])
+#upper_bound <- max(p_values[cumulative_posterior <= 0.975])
+
+# Print the 95% credibility interval
+#cat("95% Credibility Interval (Gamma Prior): [", lower_bound, ", ", upper_bound, "]\n")
+
 
 
 
@@ -433,8 +496,7 @@ $\textit{T, T, T, T, T, H, T, T, H, H, T, T, H, H, H, T, H, T, H, T, H, H, T, H,
     and posterior distributions for the data set;
 
 ```{r}
-install.packages("gridExtra")
-library(gridExtra)
+library(ggplot2)
 
 ## Assuming first a flat prior 
 
@@ -455,7 +517,7 @@ flat_prior <- function(p) {dunif(p, 0,1)}
 
 ## Defining a beta prior 
 
-beta_prior <- function(p) {dbeta(p, 1,1)} #quali sono i valori di alpha e beta?
+beta_prior <- function(p) {dbeta(p, 5, 5)} # quali sono i valori di alpha e beta?
 
        
 posterior <- function(p, likelihood, prior_func) {
@@ -536,8 +598,11 @@ posterior_flat_plot
 posterior_beta_plot
 
 
-# Le distribuzioni sono uguali perché le prior sono uguali (flat prior e beta prior)
 ```
+
+As we can observe from the plot, the two posterior functions don't
+differ so much. That can be due to the fact that the beta and uniform
+prior distributions are similar.
 
 (b) Evaluate the most probable value for the coin probability $p$ and,
     integrating the posterior probability distribution, give an estimate
@@ -556,7 +621,7 @@ cumulative_posterior <- cumsum(posterior_flat_values) # estimating the cumulativ
 lower_bound <- min(p_values[cumulative_posterior >= 0.025])
 upper_bound <- max(p_values[cumulative_posterior <= 0.975])
 
-cat('95% credibility interval: ', lower_bound, '-', upper_bound, ' \n')
+cat(sprintf('95%% credibility interval: [%.3f, %.3f]', lower_bound,  upper_bound))
 
 ```
 
@@ -585,11 +650,30 @@ for (i in 1:n_tosses) {
   mode_p <- p_values[mode_index]
   modes[i] <- mode_p
   
-  cumulative_posterior <- cumsum(posterior_values)
-  lower_bound <- min(p_values[cumulative_posterior >= 0.025])
-  upper_bound <- max(p_values[cumulative_posterior <= 0.975])
-  lower_bounds[i] <- lower_bound 
+  minimum_integral <- 1
+  for (p in modes){
+         integral <- abs(integrate(posterior, lower = 0, upper = p)$value - 0.025)
+  
+  if (integral < minimum_integral) {
+    minimum_integral <- integral
+    lower_bound <- p
+  }
+  lower_bounds[i] <- lower_bound
+  }
+  
+  minimum_integral <- 1
+  for (p in modes) {
+    integral <- abs(integrate(posterior, lower = 0, upper = p)$value - 0.975)
+    
+  if (integral < minimum_integral) {
+    minimum_integral <- integral
+    upper_bound <- p
+  }
+    
+    
   upper_bounds[i] <- upper_bound
+  }
+  
 }
 
 # Plot results
@@ -607,11 +691,16 @@ legend("topright", legend = c("Mode", "95% Credibility Interval"), col = c("blac
 
 ```{r}
 
-cat(sprintf('The most probable value for p in this case is %.2f',  mean(modes)))
-## Should I evaluate the prior distribution also in this case?
-## Should I evaluate the maximum probability also in this case?
+
+cat(sprintf('The most probable value for p in this case is %.2f',  modes[length(modes)]))
+
+
+
 
 ```
+
+As a consequence, we can conclude that we obtain a different result
+analyzing the data sequentially or in a one-step analysis.
 
 $\textbf{Exercise 4: Poll}$
 
@@ -646,8 +735,8 @@ preferences2 <- c(32, 14, 26, 28)
 ## using a uniform prior we mean that the probability of a vote to a section is 
 ## uniform, there's no preferred party (so it's related to the preferences)
 
-posterior_alpha_uniform <- 1 + preferences
-posterior_beta_uniform <- 1 + N_voters - preferences
+alpha_uniform <- 1 + preferences
+beta_uniform <- 1 + N_voters - preferences
 
 # Calculate expected percentage of votes
 expected_percentage_uniform <- (alpha_uniform / (alpha_uniform + beta_uniform)) * 100
@@ -658,12 +747,24 @@ upper_ci_uniform <- qbeta(0.84, alpha_uniform, beta_uniform) * 100
 
 # Print results
 cat("Uniform Prior:\n")
-cat("Expected Percentage of Votes:", expected_percentage_uniform, "\n")
+formatted_string <- sprintf("Expected Percentage of Votes for each party: %.2f%%, %.2f%%, %.2f%%, %.2f%%", 
+                            expected_percentage_uniform[1], 
+                            expected_percentage_uniform[2], 
+                            expected_percentage_uniform[3], 
+                            expected_percentage_uniform[4])
+
+# Use paste if you need to concatenate with other strings
+result <- paste(formatted_string)
+
+# Print the result
+cat(result)
+
+cat('\n')
 cat("68% Credibility Interval:\n")
-cat("Party A:", lower_ci_uniform[1], "-", upper_ci_uniform[1], "\n")
-cat("Party B:", lower_ci_uniform[2], "-", upper_ci_uniform[2], "\n")
-cat("Party C:", lower_ci_uniform[3], "-", upper_ci_uniform[3], "\n")
-cat("Party D:", lower_ci_uniform[4], "-", upper_ci_uniform[4], "\n\n")
+cat(paste(sprintf("Party A: [%.2f%% - %.2f%%]", lower_ci_uniform[1], upper_ci_uniform[1])), '\n')
+cat(paste(sprintf("Party B: [%.2f%% - %.2f%%]", lower_ci_uniform[2], upper_ci_uniform[2])), "\n")
+cat(paste(sprintf("Party C: [%.2f%% - %.2f%%]", lower_ci_uniform[3],  upper_ci_uniform[3])), "\n")
+cat(paste(sprintf("Party D [%.2f%% - %.2f%%]:", lower_ci_uniform[4], upper_ci_uniform[4])),  "\n")
 
 alpha_uniform2 <- 1 + preferences2
 beta_uniform2 <- 1 + N2_voters - preferences2
@@ -677,12 +778,75 @@ upper_ci_uniform2 <- qbeta(0.84, alpha_uniform2, beta_uniform2) * 100
 
 # Print results
 cat("Next poll:\n")
-cat("Expected Percentage of Votes:", expected_percentage_uniform2, "\n")
-cat("68% Credibility Interval:\n")
-cat("Party A:", lower_ci_uniform2[1], "-", upper_ci_uniform2[1], "\n")
-cat("Party B:", lower_ci_uniform2[2], "-", upper_ci_uniform2[2], "\n")
-cat("Party C:", lower_ci_uniform2[3], "-", upper_ci_uniform2[3], "\n")
-cat("Party D:", lower_ci_uniform2[4], "-", upper_ci_uniform2[4], "\n\n")
+formatted_string <- sprintf("Expected Percentage of Votes for each party: %.2f%%, %.2f%%, %.2f%%, %.2f%%", 
+                            expected_percentage_uniform2[1], 
+                            expected_percentage_uniform2[2], 
+                            expected_percentage_uniform2[3], 
+                            expected_percentage_uniform2[4])
 
+# Use paste if you need to concatenate with other strings
+result <- paste(formatted_string)
+
+# Print the result
+cat(result)
+cat('\n')
+cat("68% Credibility Interval:\n")
+cat(paste(sprintf("Party A: [%.2f%% - %.2f%%]", lower_ci_uniform2[1], upper_ci_uniform2[1])), '\n')
+cat(paste(sprintf("Party B: [%.2f%% - %.2f%%]", lower_ci_uniform2[2], upper_ci_uniform2[2])), "\n")
+cat(paste(sprintf("Party C: [%.2f%% - %.2f%%]", lower_ci_uniform2[3],  upper_ci_uniform2[3])), "\n")
+cat(paste(sprintf("Party D [%.2f%% - %.2f%%]:", lower_ci_uniform2[4], upper_ci_uniform2[4])),  "\n")
+
+
+```
+
+To calculate the sample size required to achieve a margin of error of
+$\pm \ 3\%$ for each party, we need to use the formula for the sample
+size in a Bayesian context. In Bayesian statistics, sample size
+determination involves specifying a prior distribution for the parameter
+of interest, updating this prior with observed data to obtain a
+posterior distribution. We assume a uniform prior distribution for each
+party's proportion of votes. The formula to calculate the sample size
+required is:
+
+$$
+n_i = \frac{(\Phi^{-1}(1 - \alpha/2))^2 \cdot \hat{p_i} \cdot (1 - \hat{p_i})}{(\text{Margin of Error} \cdot \hat{p_i})^2}
+$$
+
+```{r}
+# Define the observed proportions for each party
+propr_A <- 57/200 + 32/100
+propr_B <- 31/200 + 14/100
+propr_C <- 45/200 + 26/100
+propr_D <- 67/200 + 28/100
+
+observed_proportions <- c(propr_A, propr_B, propr_C, propr_D)
+#observed_proportions <- c(57/200, 31/200, 45/200, 67/200)
+
+# Define the desired margin of error
+margin_of_error <- 0.03
+
+# Define the significance level
+alpha <- 0.05 # probabilità massima che un test statistica commetta un errore
+              # di default posto al 5%
+
+# Define the quantile function for the standard normal distribution
+quantile_normal <- qnorm(1 - alpha/2)
+
+# Function to calculate sample size for each party
+calculate_sample_size <- function(observed_proportion) {
+  numerator <- (quantile_normal^2) * observed_proportion * (1 - observed_proportion)
+  denominator <- (margin_of_error * observed_proportion)^2
+  sample_size <- numerator / denominator
+  return(ceiling(sample_size))
+}
+
+# Calculate sample sizes for each party
+sample_sizes <- sapply(observed_proportions, calculate_sample_size)
+
+# Print the results
+party_names <- c("A", "B", "C", "D")
+for (i in 1:length(sample_sizes)) {
+  cat("Sample size for Party", party_names[i], ":", sample_sizes[i], "\n")
+}
 
 ```
