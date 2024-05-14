@@ -1,0 +1,160 @@
+---
+title: "Exercise_4_Adv_statistics"
+author: "Ada D'Iorio"
+output: 
+html_document: 
+number_sections: true 
+theme: spacelab 
+pdf_document:
+    latex_engine: xelatex
+date: "2024-05-04"
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**Exercise 1**
+
+-   A well established and diffused method for detecting a disease in
+    blood fails to detect the presence;
+
+of disease in 15% of the patients that actually have the disease. - A
+young UniPD startUp has developed an innovative method of screening.
+During the qualification phase, a random sample of n = 75 patients known
+to have the disease is screened using the new method.
+
+(a) What is the probability distribution of y, the number of times the
+    new method fails to detect the disease?
+(b) On the \$ n  =  75 \$ patients sample, the new method fails to
+    detect the disease in y = 6 cases. What is the frequentist estimator
+    of the failure probability of the new method?
+(c) Setup a bayesian computation of the posterior probability, assuming
+    a beta distribution with mean value 0.15 and standard deviation
+    0.14. Plot the posterior distribution for y, and mark on the plot
+    the mean value and variance;
+(d) Perform a test of hypothesis assuming that if the probability of
+    failing to the detect the desease in ill patients is greater or
+    equal than 15%, the new test is no better that the traditional
+    method. Test the sample at a 5% level of significance in the
+    Bayesian way;
+(e) Perform the same hypothesis test in the classical frequentist way.
+
+**Exercise 2**
+
+-   A researcher has collected \$ n   =  16 \$ observations that are
+    supposed to come from a Normal distribution with known variance
+    $\sigma^2 \ = \ 4$:
+
+\$  4.09  4.68  1.87  2.62  5.58  8.68  4.07  4.78 \\ 4.79  4.49  5.85 
+5.09  2.40  6.27 6.30  4.47 \$
+
+-   Assuming the prior is a step function:
+
+$$
+g(\mu) = \begin{cases}
+\mu & \text{for } 0 < \mu \le 3, \\
+3 & \text{for } 3 < \mu \le 5, \\
+8 - \mu & \text{for } 5 < \mu \le 8, \\
+0 & \text{for } \mu > 8
+\end{cases}
+$$
+
+(a) Find the posterior distribution, the posterior mean and standard
+    deviation
+(b) Find the 95% credibility interval for $\mu$;
+(c) Plot the posterior distribution, indicating on the same plot: the
+    mean value, the standard deviation, and the $95 \%$ credibility
+    interval;
+(d) Plot, on the same graph, the prior, the likelihood and the posterior
+    distribution.
+
+**Exercise 3**
+
+The six boxes toy model is described in reference \textbf{[1]}.
+
+-   Labeling the boxes as follows:
+
+    ![](images/Screenshot%202024-05-13%20195727.png)
+
+-   Write a program in R that:
+
+1)  Selects a random box;
+2)  Makes a random sampling from the box;
+3)  Prints on the standard output the probability of selecting each box;
+4)  Plots the probability for each box as a function of the number of
+    trials.
+    
+```{r}
+bayes_inference <- function(n, num_iter, probabilities) {
+  
+  # Calculate the prior probability of selecting each box
+  prior <- rep(1 / 6, 6)
+  
+  if (n == 1) { ## updating based on the observed sample 
+    likelihood <- c(5:0) / 5
+  } else {
+    likelihood <- c(0:5) / 5
+  }
+  
+  posterior <- prior * likelihood
+  
+  # Normalize the posterior probabilities
+  posterior <- posterior / sum(posterior)
+  
+  # Store the posterior probabilities
+  probabilities <- rbind(probabilities, posterior)
+  
+  return(probabilities)
+  
+
+}
+
+random_sampling <- function(num_trials) {
+  
+  # Initialize matrix to store posterior probabilities
+  probabilities <- matrix(NA, nrow = 0, ncol = 6)
+  ## First let's define the boxes
+  set.seed(123)
+  
+  num_boxes <- 6
+  box_length <- 5
+  boxes <- list()
+  
+  ## Creating the boxes 
+  
+  for (i in 0:(num_boxes-1)) { 
+    vector <- c(rep(1, i), rep(0, box_length - i))
+    
+    vector_name <- paste0('H_', i)
+    boxes[[vector_name]] <- vector
+  }
+  
+         
+  for (i in 0:num_trials){
+    n <- as.integer(runif(1, min = 1, max = num_boxes))
+    m <- as.integer(runif(1, min = 1, max = box_length))
+    sample <- boxes[[n]]
+    item <- sample[[m]] # selecting one element from a random box wiwth random sampling
+    probabilities = bayes_inference(item, i, probabilities)
+  }
+  return(probabilities)    
+  }
+  
+
+num_trials <- 100
+
+x <- 1:(num_trials)
+prob <- random_sampling(num_trials)
+print(length(prob[2:nrow(prob),i]))
+print(length(x))
+
+for (i in 1:6) {
+  plot(1:(num_trials),prob[2:nrow(prob),i])
+}
+
+
+```
