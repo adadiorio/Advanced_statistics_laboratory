@@ -29,9 +29,9 @@ to have the disease is screened using the new method.
 
 (a) What is the probability distribution of y, the number of times the
     new method fails to detect the disease?
-(b) On the \$ n  =  75 \$ patients sample, the new method fails to
-    detect the disease in y = 6 cases. What is the frequentist estimator
-    of the failure probability of the new method?
+(b) On the $n =75$ patients sample, the new method fails to detect the
+    disease in y = 6 cases. What is the frequentist estimator of the
+    failure probability of the new method?
 (c) Setup a bayesian computation of the posterior probability, assuming
     a beta distribution with mean value 0.15 and standard deviation
     0.14. Plot the posterior distribution for y, and mark on the plot
@@ -87,74 +87,85 @@ The six boxes toy model is described in reference \textbf{[1]}.
 3)  Prints on the standard output the probability of selecting each box;
 4)  Plots the probability for each box as a function of the number of
     trials.
-    
+
 ```{r}
-bayes_inference <- function(n, num_iter, probabilities) {
+
   
-  # Calculate the prior probability of selecting each box
-  prior <- rep(1 / 6, 6)
   
-  if (n == 1) { ## updating based on the observed sample 
-    likelihood <- c(5:0) / 5
-  } else {
-    likelihood <- c(0:5) / 5
-  }
-  
-  posterior <- prior * likelihood
-  
-  # Normalize the posterior probabilities
-  posterior <- posterior / sum(posterior)
-  
-  # Store the posterior probabilities
-  probabilities <- rbind(probabilities, posterior)
-  
-  return(probabilities)
+sample_from_box <- function(box) {
+  prob_white <- c(1/6, 2/6, 3/6, 4/6, 5/6, 6/6)
+  rbinom(1, 1, prob_white[box + 1])
+}
   
 
+
+
+update_probabilities <- function(prior_probabilities, result) {
+  prob_white <- c(1/6, 2/6, 3/6, 4/6, 5/6, 6/6)
+  
+  likelihood <- numeric(6)
+  
+  for (i in 1:length(prob_white)) {
+    likelihood[i] <- ifelse(result == 1, prob_white[i], 1 - prob_white[i])
+  }
+
+  #likelihood <- ifelse(result == 1, prob_white, 1 - prob_white)
+  
+  # restituisce prob_white se il risultato è 1, 1 - prob_white se il risultato è 0
+ 
+  posterior_probabilities <- prior_probabilities * likelihood
+  # prodotto di un vettore iniziale (prior_probabilities) per la likelihood che è anche essa un vettore 
+  
+  posterior_probabilities <- posterior_probabilities / sum(posterior_probabilities)
+  
+  
+  return(posterior_probabilities)
 }
 
-random_sampling <- function(num_trials) {
+
+
+random_sampling <- function(num_trials, boxes) {
+  probabilities <- rep(1/6, 6)
+  plot_data <- matrix(nrow = num_trials+1, ncol = 6)
   
-  # Initialize matrix to store posterior probabilities
-  probabilities <- matrix(NA, nrow = 0, ncol = 6)
-  ## First let's define the boxes
+  
+  plot_data[1,] <- probabilities
+  
   set.seed(123)
   
-  num_boxes <- 6
-  box_length <- 5
-  boxes <- list()
-  
-  ## Creating the boxes 
-  
-  for (i in 0:(num_boxes-1)) { 
-    vector <- c(rep(1, i), rep(0, box_length - i))
+  for (i in 1:num_trials) {
     
-    vector_name <- paste0('H_', i)
-    boxes[[vector_name]] <- vector
+    box_selected <- sample(0:5, 1)
+    item <- sample_from_box(box_selected)
+    probabilities <- update_probabilities(plot_data[i,], item)
+    
+    plot_data[i+1, ] <- probabilities
+    
   }
   
-         
-  for (i in 0:num_trials){
-    n <- as.integer(runif(1, min = 1, max = num_boxes))
-    m <- as.integer(runif(1, min = 1, max = box_length))
-    sample <- boxes[[n]]
-    item <- sample[[m]] # selecting one element from a random box wiwth random sampling
-    probabilities = bayes_inference(item, i, probabilities)
-  }
-  return(probabilities)    
+  for (i in 1:6) {
+  plot(1:(num_trials+1), plot_data[,i], lty = 1, col = i,
+          xlab = 'Numero di prove', ylab = 'Probabilità',
+          main = paste('Probability for H', i))
+  grid()
   }
   
-
-num_trials <- 100
-
-x <- 1:(num_trials)
-prob <- random_sampling(num_trials)
-print(length(prob[2:nrow(prob),i]))
-print(length(x))
-
-for (i in 1:6) {
-  plot(1:(num_trials),prob[2:nrow(prob),i])
+  paste('--------------------------------------------------')
+  paste('Probabilities for:')
+  cat(paste(sprintf('H_0 \ H_1 \ H_2 \ H_3 \ H_4 \ H_5 \ H_6 \n')))
+  print(plot_data)
 }
+
+
+
+# Numero di prove
+num_trials <- 60
+
+# Esecuzione del campionamento casuale e plottaggio delle probabilità
+random_sampling(num_trials, boxes)
+
 
 
 ```
+
+
