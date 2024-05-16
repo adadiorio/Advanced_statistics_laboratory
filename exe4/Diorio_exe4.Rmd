@@ -20,10 +20,9 @@ knitr::opts_chunk$set(echo = TRUE)
 **Exercise 1**
 
 -   A well established and diffused method for detecting a disease in
-    blood fails to detect the presence;
+    blood fails to detect the presence of disease in 15% of the patients that actually have the disease. 
 
-of disease in 15% of the patients that actually have the disease. - A
-young UniPD startUp has developed an innovative method of screening.
+- A young UniPD startUp has developed an innovative method of screening.
 During the qualification phase, a random sample of n = 75 patients known
 to have the disease is screened using the new method.
 
@@ -42,6 +41,92 @@ to have the disease is screened using the new method.
     method. Test the sample at a 5% level of significance in the
     Bayesian way;
 (e) Perform the same hypothesis test in the classical frequentist way.
+
+```{r}
+
+prob_failure <- 0.15 # probability of failure is of 15%
+prob_suc <- 1 - prob_failure
+
+n <- 75 # patients with the disease screened 
+
+
+freq_prob <- 6 / 75 # percentage of failures 
+                    # binomial distribution -> yes because we have true or false 
+
+x <- 0:50 
+
+y <- rbinom(x, n, prob_failure) # values extracted from a binomial distribution
+pdf <- dbinom(x, n, prob_failure)
+#pdf <- pdf * length(y) / sum(pdf)
+
+hist(y, breaks = 6, col = 'lightcoral', xlab = 'Values', main = 'Probability distribution for y', freq = FALSE)
+lines(x, pdf, type = 'l', lwd = 2)
+grid()
+
+cat(sprintf('The failure probability in the frequentist approach is of: %.1f%%', freq_prob * 100))
+
+
+
+
+```
+```{r}
+
+## ---- Bayesian approach ------
+
+estBetaParams <- function(mu, var) {
+  alpha <- ((1 - mu) / var - 1 / mu) * mu ^ 2
+  beta <- alpha * (1 / mu - 1)
+  return(params = list(alpha = alpha, beta = beta))
+}
+
+n <- 75 
+x <- n - 6 # numero di successi 
+  
+mean_beta <- 0.15 # beta prior for the successes
+sd_beta <- 0.14
+alfa_prior <- estBetaParams(mean_beta, sd_beta^2)$alpha
+beta_prior <- estBetaParams(mean_beta, sd_beta^2)$beta
+
+# Binomial likelihood
+# New beta posterior 
+alfa_posterior <- alfa_prior + x # x number of successes
+beta_posterior <- beta_prior + n - x
+p_values <- seq(0, 1, 0.01)
+
+formatted_alfa_posterior <- sprintf('%.2f', alfa_posterior)
+formatted_beta_posterior <- sprintf('%.2f', beta_posterior)
+
+mean_posterior <- alfa_posterior / (alfa_posterior + beta_posterior)
+var_posterior <- (alfa_posterior * beta_posterior) / ((alfa_posterior + beta_posterior)^2 * (alfa_posterior + beta_posterior + 1))
+sd_posterior <- sqrt(var_posterior)
+
+posterior_values <- rbeta(p_values, alfa_posterior, beta_posterior)
+plot_post <- dbeta(p_values, alfa_posterior, beta_posterior)
+
+hist(posterior_values, breaks = 15, col = 'lightcoral', xlab = 'Values', main = 'Posterior probability distribution', freq = FALSE)
+#lines(p_values, plot_post, lty = 2, type = 'l', col = 'black')
+
+abline(v = mean_posterior, col = 'black', lwd = 2, lty = 2)
+#text(plot_post[length(plot_post)-100], max(plot_post), labels = sprintf('Mean = %.2f', mean_posterior), pos = 4, col = 'black')
+abline(v = mean_posterior + sd_posterior, col = 'red', lwd = 2, lty = 2)
+abline(v = mean_posterior - sd_posterior, col = 'red', lwd = 2, lty = 2)
+
+text(0.8, 8, labels = c(bquote(alpha == .(formatted_alfa_posterior))))
+
+text(0.8, 10, labels = c(bquote(beta == .(formatted_beta_posterior))))
+
+
+
+legend('topright', 
+       legend = c('Mean', 'Variance'), col = c('black', 'red'), lwd = 2, lty = c(2,2))
+
+cat(sprintf('Parameters for the beta prior [alpha, beta]: [%.2f, %.2f]', alfa_prior, beta_prior))
+cat('\n')
+cat(sprintf('Parameters for the beta posterior [alpha, beta]: [%.2f, %.2f]', alfa_posterior, beta_posterior))
+
+
+
+```
 
 **Exercise 2**
 
@@ -65,12 +150,56 @@ $$
 
 (a) Find the posterior distribution, the posterior mean and standard
     deviation
+
 (b) Find the 95% credibility interval for $\mu$;
+
 (c) Plot the posterior distribution, indicating on the same plot: the
     mean value, the standard deviation, and the $95 \%$ credibility
     interval;
+
 (d) Plot, on the same graph, the prior, the likelihood and the posterior
     distribution.
+
+    ```{r}
+     
+      step_function <- function(mu) {
+      if (mu > 0 & mu <= 3) {
+        return(mu)
+      }
+      if (mu > 3 & mu <= 5) {
+        return(3)
+      }
+      if (mu > 5 & mu <= 8) {
+        return(8 - mu)
+      }
+      if (mu > 8) {
+        return(0)
+      }
+    }
+
+
+      sigma_norm <- 2
+      n <- 16 # number of observations 
+      values <- c(4.09, 4.68, 1.87, 2.62, 5.58, 8.68, 4.07, 4.78, 4.79, 4.49, 5.85, 5.09, 2.40, 6.27, 6.30, 4.47)
+
+      x <- 0:10 # generating linear values in 0:10
+      hist(values, breaks = 8, main = 'Normal distribution of values', xlab = 'Value', col = 'lightcoral')
+      #curve(rnorm(x, mean = mean(values), sd = sigma_norm))
+      grid()
+      
+      
+      likelihood <- dnorm(x, mean = mean(values), sd = sigma_norm)  # la likelihood è una distribuzione gaussiana, dovrebbe restituire la distribuzione dei valori che ci attendiamo 
+      
+      # La prior è invece una step function, dovrebbe rappresentare la distribuzione iniziale che noi associamo ai nostri valori 
+      
+      # Non ho capito bene 
+      
+
+
+
+
+
+    ```
 
 **Exercise 3**
 
@@ -143,12 +272,15 @@ random_sampling <- function(num_trials, boxes) {
     
   }
   
+  par(mfrow = c(3, 2), mar = c(3, 3, 2, 1))
+  
   for (i in 1:6) {
   plot(1:(num_trials+1), plot_data[,i], lty = 1, col = i,
           xlab = 'Numero di prove', ylab = 'Probabilità',
-          main = paste('Probability for H', i))
+          main = paste('Probability for H', i), ylim = c(0,1))
   grid()
   }
+  par(mfrow = c(1, 1))
   
   paste('--------------------------------------------------')
   paste('Probabilities for:')
@@ -159,7 +291,7 @@ random_sampling <- function(num_trials, boxes) {
 
 
 # Numero di prove
-num_trials <- 60
+num_trials <- 80
 
 # Esecuzione del campionamento casuale e plottaggio delle probabilità
 random_sampling(num_trials, boxes)
@@ -168,4 +300,21 @@ random_sampling(num_trials, boxes)
 
 ```
 
+Let's now explain what is happening in the simulation. At the first
+stage all the boxes are considered equally likely, assigning $1/6$
+probability to each of them. Also the black and white balls are
+considered with probabilities of $1/2$. Going on with the experiment we
+discover that the probability of picking a white ball from a box has to
+be proportional to the number of white balls of each hypothetical
+composition. The updating rule can be defined as: \$\$
 
+P(H\_? = H_i \| E\^i, I) \propto \pi\_i
+
+$$
+where $ \pi_i = i/N$, with $N$ the total number of balls in box $i$ and $I$ stands for all the background information available for the experiment.
+In general the updating rule is given by Bayes' theorem:
+$$
+
+P(E\^i \| I) = \sum\_i P(E\^i \| H_i, I) P(H_i \| I)
+
+\$\$
