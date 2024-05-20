@@ -15,32 +15,21 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(scales)
 ```
 
 **Exercise 1**
 
 -   A well established and diffused method for detecting a disease in
-    blood fails to detect the presence of disease in 15% of the patients that actually have the disease. 
+    blood fails to detect the presence of disease in 15% of the patients
+    that actually have the disease.
 
-- A young UniPD startUp has developed an innovative method of screening.
-During the qualification phase, a random sample of n = 75 patients known
-to have the disease is screened using the new method.
+-   A young UniPD startUp has developed an innovative method of
+    screening. During the qualification phase, a random sample of n = 75
+    patients known to have the disease is screened using the new method.
 
 (a) What is the probability distribution of y, the number of times the
     new method fails to detect the disease?
-(b) On the $n =75$ patients sample, the new method fails to detect the
-    disease in y = 6 cases. What is the frequentist estimator of the
-    failure probability of the new method?
-(c) Setup a bayesian computation of the posterior probability, assuming
-    a beta distribution with mean value 0.15 and standard deviation
-    0.14. Plot the posterior distribution for y, and mark on the plot
-    the mean value and variance;
-(d) Perform a test of hypothesis assuming that if the probability of
-    failing to the detect the desease in ill patients is greater or
-    equal than 15%, the new test is no better that the traditional
-    method. Test the sample at a 5% level of significance in the
-    Bayesian way;
-(e) Perform the same hypothesis test in the classical frequentist way.
 
 ```{r}
 
@@ -53,22 +42,35 @@ n <- 75 # patients with the disease screened
 freq_prob <- 6 / 75 # percentage of failures 
                     # binomial distribution -> yes because we have true or false 
 
-x <- 0:50 
+x <- 0:100 
 
 y <- rbinom(x, n, prob_failure) # values extracted from a binomial distribution
 pdf <- dbinom(x, n, prob_failure)
 #pdf <- pdf * length(y) / sum(pdf)
 
-hist(y, breaks = 6, col = 'lightcoral', xlab = 'Values', main = 'Probability distribution for y', freq = FALSE)
+hist(y, breaks = 20, col = 'lightcoral', xlab = 'Values', main = 'Probability distribution for y', freq = FALSE)
 lines(x, pdf, type = 'l', lwd = 2)
 grid()
-
-cat(sprintf('The failure probability in the frequentist approach is of: %.1f%%', freq_prob * 100))
-
-
-
-
 ```
+
+The probability distribution for y is a binomial function with a number
+of successes $n \ = \ 75$ and a probability of success $p \ = \ 0.15$.
+
+(b) On the $n =75$ patients sample, the new method fails to detect the
+    disease in y = 6 cases. What is the frequentist estimator of the
+    failure probability of the new method?
+
+```{r}
+
+cat(sprintf('The failure probability in the frequentist approach is of the %.1f%%', freq_prob * 100))
+```
+
+(d) Perform a test of hypothesis assuming that if the probability of
+    failing to the detect the disease in ill patients is greater or
+    equal than 15%, the new test is no better that the traditional
+    method. Test the sample at a 5% level of significance in the
+    Bayesian way;
+
 ```{r}
 
 ## ---- Bayesian approach ------
@@ -80,7 +82,7 @@ estBetaParams <- function(mu, var) {
 }
 
 n <- 75 
-x <- n - 6 # numero di successi 
+x <- 6 # numero di successi 
   
 mean_beta <- 0.15 # beta prior for the successes
 sd_beta <- 0.14
@@ -91,7 +93,7 @@ beta_prior <- estBetaParams(mean_beta, sd_beta^2)$beta
 # New beta posterior 
 alfa_posterior <- alfa_prior + x # x number of successes
 beta_posterior <- beta_prior + n - x
-p_values <- seq(0, 1, 0.01)
+p_values <- seq(0, 1, 0.001)
 
 formatted_alfa_posterior <- sprintf('%.2f', alfa_posterior)
 formatted_beta_posterior <- sprintf('%.2f', beta_posterior)
@@ -103,18 +105,21 @@ sd_posterior <- sqrt(var_posterior)
 posterior_values <- rbeta(p_values, alfa_posterior, beta_posterior)
 plot_post <- dbeta(p_values, alfa_posterior, beta_posterior)
 
-hist(posterior_values, breaks = 15, col = 'lightcoral', xlab = 'Values', main = 'Posterior probability distribution', freq = FALSE)
-#lines(p_values, plot_post, lty = 2, type = 'l', col = 'black')
 
-abline(v = mean_posterior, col = 'black', lwd = 2, lty = 2)
+
+plot(p_values, plot_post, type = 'l', lwd = 2, col  ='blue', xlim = c(0, 0.25), main = 'Posterior probability distribution', xlab = 'p', ylab = 'Probability density')
+abline(v = mean_posterior, col = 'red', lwd = 2, lty = 2)
 #text(plot_post[length(plot_post)-100], max(plot_post), labels = sprintf('Mean = %.2f', mean_posterior), pos = 4, col = 'black')
-abline(v = mean_posterior + sd_posterior, col = 'red', lwd = 2, lty = 2)
-abline(v = mean_posterior - sd_posterior, col = 'red', lwd = 2, lty = 2)
+arrows(mean_posterior, 10, mean_posterior + sd_posterior / 2, 10, length = 0.1, angle = 20, col = 'red')
+arrows(mean_posterior + sd_posterior / 2, 10, mean_posterior, 10, length = 0.1, angle = 20, col = 'red')
+text(0.15, 5, labels = bquote(sigma == .(round(sd_posterior, 2))), col = 'red', pos = 3)
 
-text(0.8, 8, labels = c(bquote(alpha == .(formatted_alfa_posterior))))
 
-text(0.8, 10, labels = c(bquote(beta == .(formatted_beta_posterior))))
 
+text(0.15, 7, labels = c(bquote(alpha == .(formatted_alfa_posterior))))
+text(0.15, 9, labels = c(bquote(beta == .(formatted_beta_posterior))))
+
+grid()
 
 
 legend('topright', 
@@ -125,8 +130,71 @@ cat('\n')
 cat(sprintf('Parameters for the beta posterior [alpha, beta]: [%.2f, %.2f]', alfa_posterior, beta_posterior))
 
 
+```
+
+(d) Perform a test of hypothesis assuming that if the probability of
+    failing to the detect the disease in ill patients is greater or
+    equal than 15%, the new test is not better that the traditional
+    method. Test the sample at a 5% level of significance in the
+    Bayesian way;
+
+```{r}
+
+## Setup a null hypothesis: H_0: p >= 0.15, the new test is better than 
+## the previous one 
+## Alternative hypothesis: the new test is not better than the 
+## previous one: H_1: p < 0.15 
+## We want to prove that the NULL hypothesis is indeed FALSE
+
+## The null distribution of the test statistic is the sampling distribution
+## of the test statistics, given that the null hypothesis is true
+
+## In the bayesian approach we evaluate the posterior probability of the null 
+## hypothesis, and integrate over the required region
+
+
+alpha <- 0.5
+
+# Choosing a level of significance of 5%
+plot(p_values, plot_post, type = 'l', lwd = 2, main = 'Posterior probability distribution', ylab = 'Probability', xlab = 'p', xlim = c(0, 0.25))
+
+grid()
+polygon(c(p_values[p_values >= 0.15], 0.15),
+        c(dbeta(p_values, alfa_posterior, beta_posterior)[p_values >= 0.15], 0),
+        col = alpha('blue', 0.25),
+        border = 1)
+
+
+result <- integrate(function(p) { dbeta(p, alfa_posterior, beta_posterior) }, 0.15, 1)$value
+
+paste(sprintf('The integrated area is equal to %.2f', result))
+
+# We can conclude that the new method is better because we can reject the null 
+# hypothesis with a 5% level of significance
 
 ```
+
+Given the calculation, we can observe that the value evaluated for the
+area is of $0.03 \ < 0.05$. As a consequence, in the Bayesian approach
+we can neglect the null hypothesis.
+
+(e) Perform the same hypothesis test in the classical frequentist way.
+
+```{r}
+
+## FREQUENTIST APPROACH 
+# Computing the cumulative function 
+
+p_value <- pbinom(6, n, 0.15)
+
+print(sprintf('The p-value is equal to %.3f ', p_value))
+
+
+```
+
+In this case, we obtain $p-value \ = \ 0.054 > \ 0.05$, so the result
+lies in the acceptance region. In the frequentist approach, we cannot
+neglect the null hypothesis.
 
 **Exercise 2**
 
@@ -149,57 +217,146 @@ g(\mu) = \begin{cases}
 $$
 
 (a) Find the posterior distribution, the posterior mean and standard
-    deviation
-
-(b) Find the 95% credibility interval for $\mu$;
-
-(c) Plot the posterior distribution, indicating on the same plot: the
-    mean value, the standard deviation, and the $95 \%$ credibility
-    interval;
-
-(d) Plot, on the same graph, the prior, the likelihood and the posterior
-    distribution.
+    deviation;
 
     ```{r}
+
      
-      step_function <- function(mu) {
-      if (mu > 0 & mu <= 3) {
-        return(mu)
+      step_function <- function(mus) {
+       out <- vector('numeric', length = length(mus))
+       
+       for (i in 1:length(mus)) {
+         mu <- mus[[i]]  
+         if (mu > 0 & mu <= 3) {
+            out[[i]] <- mu
       }
       if (mu > 3 & mu <= 5) {
-        return(3)
+        out[[i]] <- 3
       }
       if (mu > 5 & mu <= 8) {
-        return(8 - mu)
+         out[[i]] <- 8 - mu
       }
       if (mu > 8) {
-        return(0)
+        out[[i]] <- 0
       }
-    }
+       }
+       return(out)
+      }
 
 
       sigma_norm <- 2
       n <- 16 # number of observations 
       values <- c(4.09, 4.68, 1.87, 2.62, 5.58, 8.68, 4.07, 4.78, 4.79, 4.49, 5.85, 5.09, 2.40, 6.27, 6.30, 4.47)
 
-      x <- 0:10 # generating linear values in 0:10
-      hist(values, breaks = 8, main = 'Normal distribution of values', xlab = 'Value', col = 'lightcoral')
-      #curve(rnorm(x, mean = mean(values), sd = sigma_norm))
-      grid()
+      mu_values <- seq(0,10,by=0.01) # generating linear values in 0:10
+      x <- 0:10 
       
+      posterior_density <- function(mus) {
+      post <- double(length= length(mus))
+      priors <- double(length = length(mus))
+      lklhd <- double(length = length(mus))
       
-      likelihood <- dnorm(x, mean = mean(values), sd = sigma_norm)  # la likelihood è una distribuzione gaussiana, dovrebbe restituire la distribuzione dei valori che ci attendiamo 
+        for (i in 1:length(mus)) {
+          mu <- mus[i]
+          
+       prior <- step_function(mu)
+       likelihood <- prod(dnorm(values, mean = mu, sd= sigma_norm))
+       
+       
+       priors[i] <- prior
+       lklhd[i] <- likelihood
+       post[i] <- prior * likelihood 
+       
+       
+       
+        }
+      post <- post / sum(post)
+      lklhd <- lklhd / sum(lklhd)
+      priors <- priors / sum(priors)
       
-      # La prior è invece una step function, dovrebbe rappresentare la distribuzione iniziale che noi associamo ai nostri valori 
-      
-      # Non ho capito bene 
+        return(list(posterior = post, prior = priors, likelihood = lklhd))
+      }
       
 
-
-
+     
+     posterior <- posterior_density(mu_values)$posterior
+     
+     # Estimating the mean of the posterior distribution 
+     
+     mean <- sum(mu_values * posterior)
+     variance <- sum((mu_values - mean)^2 * posterior) 
+     sd <- sqrt(variance)
+     
+     cat(sprintf('The mean for the posterior distribution is: %.2f', mean), '\n')
+     cat(sprintf('The variance for the posterior distribution is: %.2f', variance))
+     
+     plot(mu_values, posterior, type = 'l', col = 'blue', lwd = 2, main = 'Posterior probability function', ylab = 'Probability', xlab = expression(mu))
+     
+     
+     grid()
 
 
     ```
+
+(b) Find the 95% credibility interval for $\mu$;
+
+```{r}
+
+cumulative_posterior <- cumsum(posterior)   
+  
+lower_bound <- min(mu_values[cumulative_posterior >= 0.025])
+upper_bound <- max(mu_values[cumulative_posterior <= 0.975])
+
+# Print the 95% credibility interval
+cat(sprintf("95%% Credibility Interval: [%.2f, %.2f]", lower_bound, upper_bound))
+   
+   
+```
+
+(c) Plot the posterior distribution, indicating on the same plot: the
+    mean value, the standard deviation, and the $95 \%$ credibility
+    interval;
+
+```{r}
+
+plot(mu_values, posterior, type = 'l', col = 'blue', lwd = 2, main = 'Posterior probability function', ylab = 'Probability', xlab = 'p')
+abline(v = mean, col = 'red', lwd = 2, lty = 2)
+#abline(v = c(lower_bound, upper_bound), col = "lightblue", lwd = 2, lty = 2)
+legend("topright", legend = c("Mean", "95% Credibility Interval"),
+       col = c("red", alpha('blue', 0.25)), lty = c(2,1), lwd = 2)
+     
+grid()
+
+area_x <- c(lower_bound, mu_values[mu_values >= lower_bound & mu_values <= upper_bound], upper_bound)
+area_y <- c(0, posterior[mu_values >= lower_bound & mu_values <= upper_bound], 0)
+
+arrows(mean + sd / 2, 0.004, mean + sd, 0.004, length = 0.1, angle = 20, col = 'red')
+arrows(mean + sd/ 2, 0.004, mean , 0.004, length = 0.1, angle = 20, col = 'red')
+text(mean_posterior + 2.5, 0.004, labels = bquote(sigma == .(round(sd_posterior, 2))), col = 'red', pos = 3)
+
+polygon(area_x, area_y, col = alpha('blue', 0.25))
+
+
+```
+
+(d) Plot, on the same graph, the prior, the likelihood and the posterior
+    distribution.
+
+```{r}
+prior <- posterior_density(mu_values)$prior
+likelihood <- posterior_density(mu_values)$likelihood
+
+plot(mu_values, posterior, type = 'l', col = "dodgerblue"
+, lwd = 2, main = 'Probability distribution functions', ylab = 'Probability', xlab = expression(mu))
+lines(mu_values, prior, col = "orchid", lwd = 2)
+lines(mu_values, likelihood, col = "forestgreen", lwd = 2)
+legend('topright', legend = c('Prior', 'Likelihood', 'Posterior'), col = c("orchid", "forestgreen", "dodgerblue"
+), lty = 1, lwd = 2)
+grid() 
+
+
+
+```
 
 **Exercise 3**
 
@@ -270,6 +427,7 @@ random_sampling <- function(num_trials, boxes) {
     
     plot_data[i+1, ] <- probabilities
     
+    
   }
   
   par(mfrow = c(3, 2), mar = c(3, 3, 2, 1))
@@ -306,15 +464,10 @@ probability to each of them. Also the black and white balls are
 considered with probabilities of $1/2$. Going on with the experiment we
 discover that the probability of picking a white ball from a box has to
 be proportional to the number of white balls of each hypothetical
-composition. The updating rule can be defined as: \$\$
+composition. The updating rule can be defined as:
 
-P(H\_? = H_i \| E\^i, I) \propto \pi\_i
-
-$$
-where $ \pi_i = i/N$, with $N$ the total number of balls in box $i$ and $I$ stands for all the background information available for the experiment.
-In general the updating rule is given by Bayes' theorem:
-$$
-
-P(E\^i \| I) = \sum\_i P(E\^i \| H_i, I) P(H_i \| I)
-
-\$\$
+$$ P(H_? = H_i | E^i, I) \propto \pi_i $$ where $\pi_i = i/N$, with $N$
+the total number of balls in box $i$ and $I$ stands for all the
+background information available for the experiment. In general the
+updating rule is given by Bayes' theorem:
+$$ P(E^i | I) \propto \sum_i P(E^i | H_i, I) P(H_i | I) $$
